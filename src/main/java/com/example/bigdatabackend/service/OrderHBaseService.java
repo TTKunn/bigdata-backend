@@ -250,42 +250,97 @@ public class OrderHBaseService {
         try {
             Order order = new Order();
 
-            // 解析基础信息
-            order.setOrderId(Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("order_id"))));
-            order.setUserId(Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("user_id"))));
-            order.setTotalAmount(new java.math.BigDecimal(Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("total_amount")))));
-            order.setDiscountAmount(new java.math.BigDecimal(Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("discount_amount")))));
-            order.setActualAmount(new java.math.BigDecimal(Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("actual_amount")))));
+            // 解析基础信息 - 添加空值检查
+            byte[] orderIdBytes = result.getValue(cfBaseBytes, Bytes.toBytes("order_id"));
+            if (orderIdBytes == null) {
+                logger.warn("Order ID is null in HBase result, skipping this order");
+                return null;
+            }
+            order.setOrderId(Bytes.toString(orderIdBytes));
 
-            String statusStr = Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("status")));
-            order.setStatus(OrderStatus.valueOf(statusStr));
+            byte[] userIdBytes = result.getValue(cfBaseBytes, Bytes.toBytes("user_id"));
+            order.setUserId(userIdBytes != null ? Bytes.toString(userIdBytes) : "");
 
-            String createTimeStr = Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("create_time")));
-            order.setCreateTime(LocalDateTime.parse(createTimeStr, DATETIME_FORMATTER));
+            // 解析金额字段 - 添加空值检查
+            byte[] totalAmountBytes = result.getValue(cfBaseBytes, Bytes.toBytes("total_amount"));
+            if (totalAmountBytes != null) {
+                String totalAmountStr = Bytes.toString(totalAmountBytes);
+                order.setTotalAmount(new java.math.BigDecimal(totalAmountStr));
+            } else {
+                logger.warn("Total amount is null for order: {}", order.getOrderId());
+                order.setTotalAmount(java.math.BigDecimal.ZERO);
+            }
 
+            byte[] discountAmountBytes = result.getValue(cfBaseBytes, Bytes.toBytes("discount_amount"));
+            if (discountAmountBytes != null) {
+                String discountAmountStr = Bytes.toString(discountAmountBytes);
+                order.setDiscountAmount(new java.math.BigDecimal(discountAmountStr));
+            } else {
+                order.setDiscountAmount(java.math.BigDecimal.ZERO);
+            }
+
+            byte[] actualAmountBytes = result.getValue(cfBaseBytes, Bytes.toBytes("actual_amount"));
+            if (actualAmountBytes != null) {
+                String actualAmountStr = Bytes.toString(actualAmountBytes);
+                order.setActualAmount(new java.math.BigDecimal(actualAmountStr));
+            } else {
+                logger.warn("Actual amount is null for order: {}", order.getOrderId());
+                order.setActualAmount(java.math.BigDecimal.ZERO);
+            }
+
+            // 解析订单状态
+            byte[] statusBytes = result.getValue(cfBaseBytes, Bytes.toBytes("status"));
+            if (statusBytes != null) {
+                String statusStr = Bytes.toString(statusBytes);
+                order.setStatus(OrderStatus.valueOf(statusStr));
+            } else {
+                logger.warn("Status is null for order: {}, defaulting to PENDING_PAYMENT", order.getOrderId());
+                order.setStatus(OrderStatus.PENDING_PAYMENT);
+            }
+
+            // 解析创建时间
+            byte[] createTimeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("create_time"));
+            if (createTimeBytes != null) {
+                String createTimeStr = Bytes.toString(createTimeBytes);
+                order.setCreateTime(LocalDateTime.parse(createTimeStr, DATETIME_FORMATTER));
+            } else {
+                logger.warn("Create time is null for order: {}", order.getOrderId());
+                order.setCreateTime(LocalDateTime.now());
+            }
+
+            // 解析支付时间
             byte[] payTimeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("pay_time"));
             if (payTimeBytes != null) {
                 String payTimeStr = Bytes.toString(payTimeBytes);
                 order.setPayTime(LocalDateTime.parse(payTimeStr, DATETIME_FORMATTER));
             }
 
+            // 解析取消时间
             byte[] cancelTimeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("cancel_time"));
             if (cancelTimeBytes != null) {
                 String cancelTimeStr = Bytes.toString(cancelTimeBytes);
                 order.setCancelTime(LocalDateTime.parse(cancelTimeStr, DATETIME_FORMATTER));
             }
 
+            // 解析完成时间
             byte[] completeTimeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("complete_time"));
             if (completeTimeBytes != null) {
                 String completeTimeStr = Bytes.toString(completeTimeBytes);
                 order.setCompleteTime(LocalDateTime.parse(completeTimeStr, DATETIME_FORMATTER));
             }
 
-            // 解析收货地址
-            order.setReceiver(Bytes.toString(result.getValue(cfAddressBytes, Bytes.toBytes("receiver"))));
-            order.setPhone(Bytes.toString(result.getValue(cfAddressBytes, Bytes.toBytes("phone"))));
-            order.setAddress(Bytes.toString(result.getValue(cfAddressBytes, Bytes.toBytes("address"))));
-            order.setPostcode(Bytes.toString(result.getValue(cfAddressBytes, Bytes.toBytes("postcode"))));
+            // 解析收货地址 - 添加空值检查
+            byte[] receiverBytes = result.getValue(cfAddressBytes, Bytes.toBytes("receiver"));
+            order.setReceiver(receiverBytes != null ? Bytes.toString(receiverBytes) : "");
+
+            byte[] phoneBytes = result.getValue(cfAddressBytes, Bytes.toBytes("phone"));
+            order.setPhone(phoneBytes != null ? Bytes.toString(phoneBytes) : "");
+
+            byte[] addressBytes = result.getValue(cfAddressBytes, Bytes.toBytes("address"));
+            order.setAddress(addressBytes != null ? Bytes.toString(addressBytes) : "");
+
+            byte[] postcodeBytes = result.getValue(cfAddressBytes, Bytes.toBytes("postcode"));
+            order.setPostcode(postcodeBytes != null ? Bytes.toString(postcodeBytes) : "");
 
             // 解析商品明细
             byte[] itemsJsonBytes = result.getValue(cfItemsBytes, Bytes.toBytes("items_json"));
