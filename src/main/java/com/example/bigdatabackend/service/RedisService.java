@@ -359,7 +359,7 @@ public class RedisService {
      */
     public void incrStock(String productId, int quantity) {
         if (productId == null || quantity <= 0) {
-            logger.warn("Invalid parametersck increment: productId={}, quantity={}", productId, quantity);
+            logger.warn("Invalid parameters for stock increment: productId={}, quantity={}", productId, quantity);
             return;
         }
 
@@ -370,5 +370,110 @@ public class RedisService {
         } catch (Exception e) {
             logger.error("Failed to increment stock for productId: {}", productId, e);
         }
+    }
+
+    /**
+     * 回库库存（取消订单时使用）
+     * 与incrStock功能相同，但语义更清晰
+     */
+    public void restoreStock(String productId, int quantity) {
+        incrStock(productId, quantity);
+        logger.info("Restored {} units of stock for product: {}", quantity, productId);
+    }
+
+    // ==================== 订单状态计数器相关方法 ====================
+
+    /**
+     * 增加订单状态计数
+     */
+    public void incrementOrderStatusCount(String status) {
+        if (status == null) {
+            logger.warn("Cannot increment order status count: status is null");
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+
+            // 增加总订单数
+            jedis.incr("order:count:total");
+
+            // 增加状态计数
+            jedis.incr("order:count:status:" + status);
+
+            // 增加每日订单数
+            jedis.incr("order:count:daily:" + today);
+
+            // 增加每日状态计数
+            jedis.incr("order:count:daily:" + today + ":" + status);
+
+            logger.debug("Incremented order status count for status: {}", status);
+        } catch (Exception e) {
+            logger.error("Failed to increment order status count for status: {}", status, e);
+        }
+    }
+
+    /**
+     * 减少订单状态计数
+     */
+    public void decrementOrderStatusCount(String status) {
+        if (status == null) {
+            logger.warn("Cannot decrement order status count: status is null");
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+
+            // 减少状态计数
+            jedis.decr("order:count:status:" + status);
+
+            // 减少每日状态计数
+            jedis.decr("order:count:daily:" + today + ":" + status);
+
+            logger.debug("Decremented order status count for status: {}", status);
+        } catch (Exception e) {
+            logger.error("Failed to decrement order status count for status: {}", status, e);
+        }
+    }
+
+    /**
+     * 更新订单状态计数（状态转换时使用）
+     */
+    public void updateOrderStatusCount(String oldStatus, String newStatus) {
+        if (oldStatus == null || newStatus == null) {
+            logger.warn("Cannot update order status count: oldStatus or newStatus is null");
+            return;
+        }
+
+        decrementOrderStatusCount(oldStatus);
+        incrementOrderStatusCount(newStatus);
+        logger.info("Updated order status count from {} to {}", oldStatus, newStatus);
+    }
+
+    /**
+     * 获取订单状态统计
+     */
+    public Map<String, Long> getOrderStatusStatistics() {
+        Map<String, Long> stats = new HashMap<>();
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            // 获取总订单数
+            String total = jedis.get("order:count:total");
+            stats.put("total", total != null ? Long.parseLong(total) : 0L);
+
+            // 获取各状态订单数
+            String[] statuses = {"PENDING_PAYMENT", "PAID", "COMPLETED", "CANCELLED"};
+            for (String status : statuses) {
+                String count = jedis.get("order:count:status:" + status);
+                stats.put(status, count != null ? Long.parseLong(count) : 0L);
+            }
+
+            logger.debug("Retrieved order status statistics: {}", stats);
+        } catch (Exception e) {
+            logger.error("Failed to get order status statistics", e);
+        }
+
+        return stats;
     }
 }

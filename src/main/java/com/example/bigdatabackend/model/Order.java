@@ -17,6 +17,8 @@ public class Order {
     private OrderStatus status;       // 订单状态
     private LocalDateTime createTime; // 创建时间
     private LocalDateTime payTime;    // 支付时间
+    private LocalDateTime cancelTime; // 取消时间
+    private LocalDateTime completeTime; // 完成时间
 
     // 收货信息
     private String receiver;          // 收货人
@@ -94,6 +96,22 @@ public class Order {
         this.payTime = payTime;
     }
 
+    public LocalDateTime getCancelTime() {
+        return cancelTime;
+    }
+
+    public void setCancelTime(LocalDateTime cancelTime) {
+        this.cancelTime = cancelTime;
+    }
+
+    public LocalDateTime getCompleteTime() {
+        return completeTime;
+    }
+
+    public void setCompleteTime(LocalDateTime completeTime) {
+        this.completeTime = completeTime;
+    }
+
     public String getReceiver() {
         return receiver;
     }
@@ -132,6 +150,48 @@ public class Order {
 
     public void setItems(List<OrderItem> items) {
         this.items = items;
+    }
+
+    /**
+     * 验证是否可以转换到目标状态
+     */
+    public boolean canTransitionTo(OrderStatus newStatus) {
+        if (this.status == null || newStatus == null) {
+            return false;
+        }
+
+        switch (this.status) {
+            case PENDING_PAYMENT:
+                return newStatus == OrderStatus.PAID || newStatus == OrderStatus.CANCELLED;
+            case PAID:
+                return newStatus == OrderStatus.COMPLETED;
+            case COMPLETED:
+            case CANCELLED:
+                return false; // 终态不能转换
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * 更新支付时间
+     */
+    public void updatePayTime() {
+        this.payTime = LocalDateTime.now();
+    }
+
+    /**
+     * 更新取消时间
+     */
+    public void updateCancelTime() {
+        this.cancelTime = LocalDateTime.now();
+    }
+
+    /**
+     * 更新完成时间
+     */
+    public void updateCompleteTime() {
+        this.completeTime = LocalDateTime.now();
     }
 
     /**

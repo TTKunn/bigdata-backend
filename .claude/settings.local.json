@@ -32,7 +32,9 @@
       "Bash(powershell.exe -Command \"Get-Content 'C:\\\\Users\\\\32934\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Code-project-bigdata-backend\\\\tasks\\\\b93d0e4.output' -Tail 30\":*)",
       "Bash(powershell.exe -Command \"Get-Content 'C:\\\\Users\\\\32934\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Code-project-bigdata-backend\\\\tasks\\\\b93d0e4.output' -Tail 80 | Select-String -Pattern 'EmptyCart|No selected'\":*)",
       "Bash(powershell.exe:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(git checkout:*)",
+      "Bash(timeout /t 5 /nobreak)"
     ]
   }
 }

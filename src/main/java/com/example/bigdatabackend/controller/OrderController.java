@@ -5,6 +5,9 @@ import com.example.bigdatabackend.dto.OrderCreateRequest;
 import com.example.bigdatabackend.dto.OrderDetailDto;
 import com.example.bigdatabackend.dto.OrderListQueryRequest;
 import com.example.bigdatabackend.dto.OrderListResponse;
+import com.example.bigdatabackend.dto.OrderStatusUpdateResponse;
+import com.example.bigdatabackend.exception.InvalidOrderStatusException;
+import com.example.bigdatabackend.exception.OrderNotFoundException;
 import com.example.bigdatabackend.service.OrderService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -79,6 +82,118 @@ public class OrderController {
             return ResponseEntity.ok(ApiResponse.success(response, "查询成功"));
         } catch (Exception e) {
             logger.error("Failed to get order list", e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "查询失败"));
+        }
+    }
+
+    /**
+     * 支付订单
+     */
+    @PostMapping("/{orderId}/pay")
+    @ApiOperation("支付订单")
+    public ResponseEntity<ApiResponse<OrderStatusUpdateResponse>> payOrder(
+            @ApiParam(value = "订单ID", required = true)
+            @PathVariable String orderId) {
+
+        logger.info("Received request to pay order: {}", orderId);
+
+        try {
+            OrderStatusUpdateResponse response = orderService.payOrder(orderId);
+            return ResponseEntity.ok(ApiResponse.success(response, "支付成功"));
+        } catch (OrderNotFoundException e) {
+            logger.warn("Order not found: {}", orderId);
+            return ResponseEntity.status(404)
+                    .body(ApiResponse.error(404, e.getMessage()));
+        } catch (InvalidOrderStatusException e) {
+            logger.warn("Invalid order status for payment: {}", e.getMessage());
+            return ResponseEntity.status(400)
+                    .body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to pay order: {}", orderId, e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "支付失败"));
+        }
+    }
+
+    /**
+     * 取消订单
+     */
+    @PostMapping("/{orderId}/cancel")
+    @ApiOperation("取消订单")
+    public ResponseEntity<ApiResponse<OrderStatusUpdateResponse>> cancelOrder(
+            @ApiParam(value = "订单ID", required = true)
+            @PathVariable String orderId) {
+
+        logger.info("Received request to cancel order: {}", orderId);
+
+        try {
+            OrderStatusUpdateResponse response = orderService.cancelOrder(orderId);
+            return ResponseEntity.ok(ApiResponse.success(response, "取消成功"));
+        } catch (OrderNotFoundException e) {
+            logger.warn("Order not found: {}", orderId);
+            return ResponseEntity.status(404)
+                    .body(ApiResponse.error(404, e.getMessage()));
+        } catch (InvalidOrderStatusException e) {
+            logger.warn("Invalid order status for cancellation: {}", e.getMessage());
+            return ResponseEntity.status(400)
+                    .body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to cancel order: {}", orderId, e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "取消失败"));
+        }
+    }
+
+    /**
+     * 完成订单（确认收货）
+     */
+    @PostMapping("/{orderId}/complete")
+    @ApiOperation("完成订单（确认收货）")
+    public ResponseEntity<ApiResponse<OrderStatusUpdateResponse>> completeOrder(
+            @ApiParam(value = "订单ID", required = true)
+            @PathVariable String orderId) {
+
+        logger.info("Received request to complete order: {}", orderId);
+
+        try {
+            OrderStatusUpdateResponse response = orderService.completeOrder(orderId);
+            return ResponseEntity.ok(ApiResponse.success(response, "确认收货成功"));
+        } catch (OrderNotFoundException e) {
+            logger.warn("Order not found: {}", orderId);
+            return ResponseEntity.status(404)
+                    .body(ApiResponse.error(404, e.getMessage()));
+        } catch (InvalidOrderStatusException e) {
+            logger.warn("Invalid order status for completion: {}", e.getMessage());
+            return ResponseEntity.status(400)
+                    .body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to complete order: {}", orderId, e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "确认收货失败"));
+        }
+    }
+
+    /**
+     * 查询订单详情
+     */
+    @GetMapping("/{orderId}")
+    @ApiOperation("查询订单详情")
+    public ResponseEntity<ApiResponse<OrderDetailDto>> getOrderDetail(
+            @ApiParam(value = "订单ID", required = true)
+            @PathVariable String orderId) {
+
+        logger.info("Received request to get order detail: {}", orderId);
+
+        try {
+            OrderDetailDto orderDetail = orderService.getOrderDetail(orderId);
+            return ResponseEntity.ok(ApiResponse.success(orderDetail, "查询成功"));
+        } catch (OrderNotFoundException e) {
+            logger.warn("Order not found: {}", orderId);
+            return ResponseEntity.status(404)
+                    .body(ApiResponse.error(404, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to get order detail: {}", orderId, e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error(500, "查询失败"));
         }

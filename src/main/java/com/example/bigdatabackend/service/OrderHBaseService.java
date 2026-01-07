@@ -99,6 +99,7 @@ public class OrderHBaseService {
             // 使用订单号作为前缀扫描
             Scan scan = new Scan();
             scan.setRowPrefixFilter(Bytes.toBytes(orderId.substring(0, 8))); // 使用日期前缀
+            scan.setCacheBlocks(false); // 禁用缓存，确保读取最新数据
 
             try (ResultScanner scanner = table.getScanner(scan)) {
                 for (Result result : scanner) {
@@ -204,6 +205,14 @@ public class OrderHBaseService {
         if (order.getPayTime() != null) {
             put.addColumn(cfBaseBytes, Bytes.toBytes("pay_time"), Bytes.toBytes(order.getPayTime().format(DATETIME_FORMATTER)));
         }
+
+        if (order.getCancelTime() != null) {
+            put.addColumn(cfBaseBytes, Bytes.toBytes("cancel_time"), Bytes.toBytes(order.getCancelTime().format(DATETIME_FORMATTER)));
+        }
+
+        if (order.getCompleteTime() != null) {
+            put.addColumn(cfBaseBytes, Bytes.toBytes("complete_time"), Bytes.toBytes(order.getCompleteTime().format(DATETIME_FORMATTER)));
+        }
     }
 
     /**
@@ -260,6 +269,18 @@ public class OrderHBaseService {
                 order.setPayTime(LocalDateTime.parse(payTimeStr, DATETIME_FORMATTER));
             }
 
+            byte[] cancelTimeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("cancel_time"));
+            if (cancelTimeBytes != null) {
+                String cancelTimeStr = Bytes.toString(cancelTimeBytes);
+                order.setCancelTime(LocalDateTime.parse(cancelTimeStr, DATETIME_FORMATTER));
+            }
+
+            byte[] completeTimeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("complete_time"));
+            if (completeTimeBytes != null) {
+                String completeTimeStr = Bytes.toString(completeTimeBytes);
+                order.setCompleteTime(LocalDateTime.parse(completeTimeStr, DATETIME_FORMATTER));
+            }
+
             // 解析收货地址
             order.setReceiver(Bytes.toString(result.getValue(cfAddressBytes, Bytes.toBytes("receiver"))));
             order.setPhone(Bytes.toString(result.getValue(cfAddressBytes, Bytes.toBytes("phone"))));
@@ -278,6 +299,70 @@ public class OrderHBaseService {
         } catch (Exception e) {
             logger.error("Failed to parse order from HBase result", e);
             return null;
+        }
+    }
+
+    /**
+     * 更新订单（状态变更时使用）
+     */
+    public void updateOrder(Order order) throws IOException {
+        if (order == null || order.getOrderId() == null) {
+            throw new IllegalArgumentException("订单或订单ID不能为空");
+        }
+
+        logger.info("Updating order in HBase: orderId={}, status={}",
+            order.getOrderId(), order.getStatus());
+
+        try (Table table = hBaseConnection.getTable(tableName)) {
+            // 使用Scan找到原始行的RowKey
+            Scan scan = new Scan();
+            scan.setRowPrefixFilter(Bytes.toBytes(order.getOrderId().substring(0, 8))); // 使用日期前缀
+            scan.setCacheBlocks(false); // 禁用缓存，确保读取最新数据
+
+            String actualRowKey = null;
+            try (ResultScanner scanner = table.getScanner(scan)) {
+                for (Result result : scanner) {
+                    String orderId = Bytes.toString(result.getValue(cfBaseBytes, Bytes.toBytes("order_id")));
+                    if (order.getOrderId().equals(orderId)) {
+                        actualRowKey = Bytes.toString(result.getRow());
+                        logger.debug("Found existing row with RowKey: {}", actualRowKey);
+                        break;
+                    }
+                }
+            }
+
+            if (actualRowKey == null) {
+                throw new IllegalArgumentException("订单不存在: " + order.getOrderId());
+            }
+
+            // 使用找到的RowKey进行更新
+            Put put = new Put(Bytes.toBytes(actualRowKey));
+
+            // 更新订单状态
+            put.addColumn(cfBaseBytes, Bytes.toBytes("status"),
+                Bytes.toBytes(order.getStatus().name()));
+
+            // 更新时间戳字段
+            if (order.getPayTime() != null) {
+                put.addColumn(cfBaseBytes, Bytes.toBytes("pay_time"),
+                    Bytes.toBytes(order.getPayTime().format(DATETIME_FORMATTER)));
+            }
+
+            if (order.getCancelTime() != null) {
+                put.addColumn(cfBaseBytes, Bytes.toBytes("cancel_time"),
+                    Bytes.toBytes(order.getCancelTime().format(DATETIME_FORMATTER)));
+            }
+
+            if (order.getCompleteTime() != null) {
+                put.addColumn(cfBaseBytes, Bytes.toBytes("complete_time"),
+                    Bytes.toBytes(order.getCompleteTime().format(DATETIME_FORMATTER)));
+            }
+
+            table.put(put);
+            logger.info("Successfully updated order in HBase: {}", order.getOrderId());
+        } catch (IOException e) {
+            logger.error("Failed to update order in HBase: {}", order.getOrderId(), e);
+            throw e;
         }
     }
 }

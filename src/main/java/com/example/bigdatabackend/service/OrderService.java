@@ -4,6 +4,7 @@ import com.example.bigdatabackend.dto.OrderCreateRequest;
 import com.example.bigdatabackend.dto.OrderDetailDto;
 import com.example.bigdatabackend.dto.OrderListQueryRequest;
 import com.example.bigdatabackend.dto.OrderListResponse;
+import com.example.bigdatabackend.dto.OrderStatusUpdateResponse;
 
 /**
  * 订单服务接口
@@ -25,4 +26,36 @@ public interface OrderService {
      * @return 订单列表
      */
     OrderListResponse getOrderList(OrderListQueryRequest request);
+
+    /**
+     * 支付订单
+     *
+     * @param orderId 订单ID
+     * @return 状态更新结果
+     */
+    OrderStatusUpdateResponse payOrder(String orderId);
+
+    /**
+     * 取消订单
+     *
+     * @param orderId 订单ID
+     * @return 状态更新结果
+     */
+    OrderStatusUpdateResponse cancelOrder(String orderId);
+
+    /**
+     * 完成订单（确认收货）
+     *
+     * @param orderId 订单ID
+     * @return 状态更新结果
+     */
+    OrderStatusUpdateResponse completeOrder(String orderId);
+
+    /**
+     * 查询订单详情
+     *
+     * @param orderId 订单ID
+     * @return 订单详情
+     */
+    OrderDetailDto getOrderDetail(String orderId);
 }

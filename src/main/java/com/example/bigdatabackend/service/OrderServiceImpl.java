@@ -3,7 +3,9 @@ package com.example.bigdatabackend.service;
 import com.example.bigdatabackend.constants.OrderConstants;
 import com.example.bigdatabackend.dto.*;
 import com.example.bigdatabackend.exception.EmptyCartException;
+import com.example.bigdatabackend.exception.InvalidOrderStatusException;
 import com.example.bigdatabackend.exception.OrderCreationException;
+import com.example.bigdatabackend.exception.OrderNotFoundException;
 import com.example.bigdatabackend.model.Order;
 import com.example.bigdatabackend.model.OrderStatus;
 import com.example.bigdatabackend.util.IdGenerator;
@@ -333,5 +335,195 @@ public class OrderServiceImpl implements OrderService {
         dto.setQuantity(orderItem.getQuantity());
         dto.setTotalAmount(orderItem.getTotalAmount());
         return dto;
+    }
+
+    /**
+     * 支付订单
+     */
+    @Override
+    @Transactional
+    public OrderStatusUpdateResponse payOrder(String orderId) {
+        logger.info("Paying order: {}", orderId);
+
+        try {
+            // 1. 查询订单
+            Order order = orderHBaseService.getOrderById(orderId);
+            if (order == null) {
+                logger.warn("Order not found: {}", orderId);
+                throw new OrderNotFoundException(orderId);
+            }
+
+            // 2. 验证状态
+            if (!order.canTransitionTo(OrderStatus.PAID)) {
+                logger.warn("Invalid status transition for order: {}, current status: {}",
+                    orderId, order.getStatus());
+                throw new InvalidOrderStatusException(
+                    String.format("订单状态不允许支付，当前状态：%s", order.getStatus().name()));
+            }
+
+            // 3. 更新状态和时间
+            OrderStatus oldStatus = order.getStatus();
+            order.setStatus(OrderStatus.PAID);
+            order.updatePayTime();
+
+            // 4. 更新Redis状态计数器
+            redisService.updateOrderStatusCount(oldStatus.name(), OrderStatus.PAID.name());
+
+            // 5. 保存到HBase
+            orderHBaseService.updateOrder(order);
+
+            logger.info("Successfully paid order: {}", orderId);
+            return buildStatusUpdateResponse(order, "支付成功");
+
+        } catch (OrderNotFoundException | InvalidOrderStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to pay order: {}", orderId, e);
+            throw new OrderCreationException("支付订单失败", e);
+        }
+    }
+
+    /**
+     * 取消订单
+     */
+    @Override
+    @Transactional
+    public OrderStatusUpdateResponse cancelOrder(String orderId) {
+        logger.info("Cancelling order: {}", orderId);
+
+        try {
+            // 1. 查询订单
+            Order order = orderHBaseService.getOrderById(orderId);
+            if (order == null) {
+                logger.warn("Order not found: {}", orderId);
+                throw new OrderNotFoundException(orderId);
+            }
+
+            // 2. 验证状态
+            if (!order.canTransitionTo(OrderStatus.CANCELLED)) {
+                logger.warn("Invalid status transition for order: {}, current status: {}",
+                    orderId, order.getStatus());
+                throw new InvalidOrderStatusException(
+                    String.format("订单状态不允许取消，当前状态：%s", order.getStatus().name()));
+            }
+
+            // 3. 回库库存
+            restoreStockForOrder(order.getItems());
+
+            // 4. 更新状态和时间
+            OrderStatus oldStatus = order.getStatus();
+            order.setStatus(OrderStatus.CANCELLED);
+            order.updateCancelTime();
+
+            // 5. 更新Redis状态计数器
+            redisService.updateOrderStatusCount(oldStatus.name(), OrderStatus.CANCELLED.name());
+
+            // 6. 保存到HBase
+            orderHBaseService.updateOrder(order);
+
+            logger.info("Successfully cancelled order: {}", orderId);
+            return buildStatusUpdateResponse(order, "取消成功");
+
+        } catch (OrderNotFoundException | InvalidOrderStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to cancel order: {}", orderId, e);
+            throw new OrderCreationException("取消订单失败", e);
+        }
+    }
+
+    /**
+     * 完成订单（确认收货）
+     */
+    @Override
+    @Transactional
+    public OrderStatusUpdateResponse completeOrder(String orderId) {
+        logger.info("Completing order: {}", orderId);
+
+        try {
+            // 1. 查询订单
+            Order order = orderHBaseService.getOrderById(orderId);
+            if (order == null) {
+                logger.warn("Order not found: {}", orderId);
+                throw new OrderNotFoundException(orderId);
+            }
+
+            // 2. 验证状态
+            if (!order.canTransitionTo(OrderStatus.COMPLETED)) {
+                logger.warn("Invalid status transition for order: {}, current status: {}",
+                    orderId, order.getStatus());
+                throw new InvalidOrderStatusException(
+                    String.format("订单状态不允许完成，当前状态：%s", order.getStatus().name()));
+            }
+
+            // 3. 更新状态和时间
+            OrderStatus oldStatus = order.getStatus();
+            order.setStatus(OrderStatus.COMPLETED);
+            order.updateCompleteTime();
+
+            // 4. 更新Redis状态计数器
+            redisService.updateOrderStatusCount(oldStatus.name(), OrderStatus.COMPLETED.name());
+
+            // 5. 保存到HBase
+            orderHBaseService.updateOrder(order);
+
+            logger.info("Successfully completed order: {}", orderId);
+            return buildStatusUpdateResponse(order, "确认收货成功");
+
+        } catch (OrderNotFoundException | InvalidOrderStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to complete order: {}", orderId, e);
+            throw new OrderCreationException("完成订单失败", e);
+        }
+    }
+
+    /**
+     * 查询订单详情
+     */
+    @Override
+    public OrderDetailDto getOrderDetail(String orderId) {
+        logger.info("Getting order detail: {}", orderId);
+
+        try {
+            Order order = orderHBaseService.getOrderById(orderId);
+            if (order == null) {
+                logger.warn("Order not found: {}", orderId);
+                throw new OrderNotFoundException(orderId);
+            }
+
+            return convertToOrderDetailDto(order);
+        } catch (OrderNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to get order detail: {}", orderId, e);
+            throw new OrderCreationException("查询订单详情失败", e);
+        }
+    }
+
+    /**
+     * 回库库存（取消订单时使用）
+     */
+    private void restoreStockForOrder(List<Order.OrderItem> items) {
+        logger.debug("Restoring stock for {} items", items.size());
+        for (Order.OrderItem item : items) {
+            redisService.restoreStock(item.getProductId(), item.getQuantity());
+            logger.debug("Restored {} units of stock for product: {}",
+                item.getQuantity(), item.getProductId());
+        }
+    }
+
+    /**
+     * 构建状态更新响应
+     */
+    private OrderStatusUpdateResponse buildStatusUpdateResponse(Order order, String message) {
+        OrderStatusUpdateResponse response = new OrderStatusUpdateResponse();
+        response.setOrderId(order.getOrderId());
+        response.setStatus(order.getStatus());
+        response.setPayTime(order.getPayTime());
+        response.setCancelTime(order.getCancelTime());
+        response.setCompleteTime(order.getCompleteTime());
+        response.setMessage(message);
+        return response;
     }
 }
