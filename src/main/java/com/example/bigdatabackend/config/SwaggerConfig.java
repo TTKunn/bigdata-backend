@@ -13,11 +13,12 @@ import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 /**
- * Swagger API文档配置 - 仅开发环境启用
+ * Swagger API文档配置 - 已禁用（Springfox与Spring Boot 4.x不兼容）
+ * 如需API文档，请升级到SpringDoc OpenAPI
  */
-@Configuration
-@EnableSwagger2
-@Profile("dev")
+// @Configuration
+// @EnableSwagger2
+// @Profile("dev")
 public class SwaggerConfig {
 
     @Bean

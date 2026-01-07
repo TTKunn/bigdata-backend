@@ -3,7 +3,14 @@
     "allow": [
       "Bash(jar -tf:*)",
       "Bash(mvn dependency:tree:*)",
-      "Bash(mvn compile:*)"
+      "Bash(mvn compile:*)",
+      "Bash(jps:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(./mvnw clean compile:*)",
+      "Bash(./mvnw spring-boot:run:*)"
     ]
   }
 }
