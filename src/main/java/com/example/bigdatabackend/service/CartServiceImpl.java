@@ -182,4 +182,78 @@ public class CartServiceImpl implements CartService {
     private CartItem parseCartItem(String json) {
         return gson.fromJson(json, CartItem.class);
     }
+
+    /**
+     * 更新商品数量
+     */
+    @Override
+    public void updateItemQuantity(String productId, Integer quantity) {
+        logger.info("Updating item quantity: productId={}, quantity={}", productId, quantity);
+
+        String cartKey = CART_KEY_PREFIX + DEFAULT_USER_ID;
+        String field = productId;
+
+        // 1. 检查商品是否在购物车中
+        String existingItem = redisService.hget(cartKey, field);
+        if (existingItem == null) {
+            logger.warn("Product not found in cart: {}", productId);
+            throw new IllegalArgumentException("购物车中不存在该商品");
+        }
+
+        // 2. 检查库存
+        Integer stock = redisService.getStock(productId);
+        if (stock == null || stock < quantity) {
+            logger.warn("Insufficient stock for productId: {}, requested: {}, available: {}",
+                    productId, quantity, stock);
+            throw new IllegalArgumentException("商品库存不足");
+        }
+
+        // 3. 更新数量
+        CartItem cartItem = parseCartItem(existingItem);
+        cartItem.setQuantity(quantity);
+
+        // 4. 保存到Redis
+        redisService.hset(cartKey, field, serializeCartItem(cartItem));
+        redisService.expire(cartKey, CART_EXPIRE_SECONDS);
+
+        logger.info("Successfully updated item quantity: productId={}, quantity={}", productId, quantity);
+    }
+
+    /**
+     * 删除购物车商品
+     */
+    @Override
+    public void removeItems(List<String> productIds) {
+        logger.info("Removing items from cart: productIds={}", productIds);
+
+        if (productIds == null || productIds.isEmpty()) {
+            logger.warn("Product IDs list is empty");
+            throw new IllegalArgumentException("商品ID列表不能为空");
+        }
+
+        String cartKey = CART_KEY_PREFIX + DEFAULT_USER_ID;
+
+        // 转换为数组
+        String[] fields = productIds.toArray(new String[0]);
+
+        // 删除指定商品
+        redisService.hdel(cartKey, fields);
+
+        logger.info("Successfully removed {} items from cart", productIds.size());
+    }
+
+    /**
+     * 清空购物车
+     */
+    @Override
+    public void clearCart() {
+        logger.info("Clearing cart for default user");
+
+        String cartKey = CART_KEY_PREFIX + DEFAULT_USER_ID;
+
+        // 删除整个购物车
+        redisService.del(cartKey);
+
+        logger.info("Successfully cleared cart");
+    }
 }

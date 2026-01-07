@@ -2,7 +2,9 @@ package com.example.bigdatabackend.controller;
 
 import com.example.bigdatabackend.dto.ApiResponse;
 import com.example.bigdatabackend.dto.CartAddRequest;
+import com.example.bigdatabackend.dto.CartRemoveRequest;
 import com.example.bigdatabackend.dto.CartResponse;
+import com.example.bigdatabackend.dto.CartUpdateRequest;
 import com.example.bigdatabackend.service.CartService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -63,6 +65,65 @@ public class CartController {
         } catch (Exception e) {
             logger.error("Failed to get cart", e);
             return ResponseEntity.status(500).body(ApiResponse.error(500, "查询失败"));
+        }
+    }
+
+    /**
+     * 更新商品数量
+     */
+    @PutMapping("/update")
+    @ApiOperation("更新商品数量")
+    public ResponseEntity<ApiResponse<Void>> updateItem(
+            @Valid @RequestBody CartUpdateRequest request) {
+
+        try {
+            logger.info("Received update cart item request: {}", request);
+            cartService.updateItemQuantity(request.getProductId(), request.getQuantity());
+            return ResponseEntity.ok(ApiResponse.success(null, "更新成功"));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Failed to update cart item: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to update cart item", e);
+            return ResponseEntity.status(500).body(ApiResponse.error(500, "更新失败"));
+        }
+    }
+
+    /**
+     * 删除购物车商品
+     */
+    @DeleteMapping("/remove")
+    @ApiOperation("删除购物车商品")
+    public ResponseEntity<ApiResponse<Void>> removeItems(
+            @Valid @RequestBody CartRemoveRequest request) {
+
+        try {
+            logger.info("Received remove cart items request: {}", request);
+            cartService.removeItems(request.getProductIds());
+            return ResponseEntity.ok(ApiResponse.success(null, "删除成功"));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Failed to remove cart items: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to remove cart items", e);
+            return ResponseEntity.status(500).body(ApiResponse.error(500, "删除失败"));
+        }
+    }
+
+    /**
+     * 清空购物车
+     */
+    @DeleteMapping("/clear")
+    @ApiOperation("清空购物车")
+    public ResponseEntity<ApiResponse<Void>> clearCart() {
+
+        try {
+            logger.info("Received clear cart request");
+            cartService.clearCart();
+            return ResponseEntity.ok(ApiResponse.success(null, "清空成功"));
+        } catch (Exception e) {
+            logger.error("Failed to clear cart", e);
+            return ResponseEntity.status(500).body(ApiResponse.error(500, "清空失败"));
         }
     }
 }

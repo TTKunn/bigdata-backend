@@ -2,6 +2,8 @@ package com.example.bigdatabackend.service;
 
 import com.example.bigdatabackend.dto.CartResponse;
 
+import java.util.List;
+
 /**
  * 购物车服务接口
  */
@@ -19,4 +21,22 @@ public interface CartService {
      * @return 购物车信息
      */
     CartResponse getCart();
+
+    /**
+     * 更新商品数量
+     * @param productId 商品ID
+     * @param quantity 新的数量
+     */
+    void updateItemQuantity(String productId, Integer quantity);
+
+    /**
+     * 删除购物车商品
+     * @param productIds 商品ID列表
+     */
+    void removeItems(List<String> productIds);
+
+    /**
+     * 清空购物车
+     */
+    void clearCart();
 }

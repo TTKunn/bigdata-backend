@@ -23,7 +23,10 @@
       "Bash(ping:*)",
       "Bash(.\\\\mvnw.cmd clean compile:*)",
       "Bash(mvnw.cmd clean compile:*)",
-      "Bash(mvnw.cmd spring-boot:run:*)"
+      "Bash(mvnw.cmd spring-boot:run:*)",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 31100 -Force\")",
+      "Bash(dir:*)",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 41324 -Force\":*)"
     ]
   }
 }
