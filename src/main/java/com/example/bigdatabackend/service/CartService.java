@@ -39,4 +39,11 @@ public interface CartService {
      * 清空购物车
      */
     void clearCart();
+
+    /**
+     * 更新商品选中状态
+     * @param productIds 商品ID列表
+     * @param selected 是否选中
+     */
+    void updateItemsSelected(List<String> productIds, Boolean selected);
 }

@@ -1,5 +1,6 @@
 package com.example.bigdatabackend.service;
 
+import com.example.bigdatabackend.dto.OrderCreateRequest;
 import com.example.bigdatabackend.dto.OrderDetailDto;
 import com.example.bigdatabackend.dto.OrderListQueryRequest;
 import com.example.bigdatabackend.dto.OrderListResponse;
@@ -12,9 +13,10 @@ public interface OrderService {
     /**
      * 从购物车创建订单（使用默认用户）
      *
+     * @param request 订单创建请求（包含要结算的商品ID列表）
      * @return 订单详情
      */
-    OrderDetailDto createOrderFromCart();
+    OrderDetailDto createOrderFromCart(OrderCreateRequest request);
 
     /**
      * 查询订单列表（使用默认用户）

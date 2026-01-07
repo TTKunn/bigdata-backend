@@ -49,21 +49,28 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     @Transactional
-    public OrderDetailDto createOrderFromCart() {
-        logger.info("Starting to create order from cart for default user");
+    public OrderDetailDto createOrderFromCart(OrderCreateRequest request) {
+        logger.info("Starting to create order from cart for default user, productIds: {}", request.getProductIds());
 
-        // 1. 获取购物车选中商品
+        // 1. 获取购物车中指定的商品
         CartResponse cart = cartService.getCart();
         List<CartItemDto> selectedItems = cart.getItems().stream()
-                .filter(CartItemDto::getSelected)
+                .filter(item -> request.getProductIds().contains(item.getProductId()))
                 .collect(Collectors.toList());
 
+        // 2. 验证所有指定的商品都在购物车中
+        if (selectedItems.size() != request.getProductIds().size()) {
+            logger.warn("Some products not found in cart. Requested: {}, Found: {}",
+                    request.getProductIds().size(), selectedItems.size());
+            throw new IllegalArgumentException("部分商品不在购物车中");
+        }
+
         if (selectedItems.isEmpty()) {
-            logger.warn("No selected items in cart");
+            logger.warn("No items to order");
             throw new EmptyCartException();
         }
 
-        logger.debug("Found {} selected items in cart", selectedItems.size());
+        logger.debug("Found {} items to order from cart", selectedItems.size());
 
         // 2. 预检查库存
         validateStock(selectedItems);

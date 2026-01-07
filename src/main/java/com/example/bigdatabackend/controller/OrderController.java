@@ -1,6 +1,7 @@
 package com.example.bigdatabackend.controller;
 
 import com.example.bigdatabackend.dto.ApiResponse;
+import com.example.bigdatabackend.dto.OrderCreateRequest;
 import com.example.bigdatabackend.dto.OrderDetailDto;
 import com.example.bigdatabackend.dto.OrderListQueryRequest;
 import com.example.bigdatabackend.dto.OrderListResponse;
@@ -8,6 +9,7 @@ import com.example.bigdatabackend.service.OrderService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,11 +36,12 @@ public class OrderController {
      */
     @PostMapping("/create")
     @ApiOperation("从购物车创建订单")
-    public ResponseEntity<ApiResponse<OrderDetailDto>> createOrder() {
-        logger.info("Received request to create order from cart");
+    public ResponseEntity<ApiResponse<OrderDetailDto>> createOrder(
+            @Valid @RequestBody OrderCreateRequest request) {
+        logger.info("Received request to create order from cart: {}", request);
 
         try {
-            OrderDetailDto order = orderService.createOrderFromCart();
+            OrderDetailDto order = orderService.createOrderFromCart(request);
             return ResponseEntity.ok(ApiResponse.success(order, "订单创建成功"));
         } catch (IllegalArgumentException e) {
             logger.warn("Failed to create order: {}", e.getMessage());

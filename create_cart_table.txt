@@ -1,0 +1,4 @@
+create 'cart_data', 'cf_items', 'cf_meta'
+alter 'cart_data', {NAME => 'cf_items', VERSIONS => 3, COMPRESSION => 'SNAPPY'}
+alter 'cart_data', {NAME => 'cf_meta', VERSIONS => 1, COMPRESSION => 'SNAPPY'}
+describe 'cart_data'

@@ -4,6 +4,7 @@ import com.example.bigdatabackend.dto.ApiResponse;
 import com.example.bigdatabackend.dto.CartAddRequest;
 import com.example.bigdatabackend.dto.CartRemoveRequest;
 import com.example.bigdatabackend.dto.CartResponse;
+import com.example.bigdatabackend.dto.CartSelectRequest;
 import com.example.bigdatabackend.dto.CartUpdateRequest;
 import com.example.bigdatabackend.service.CartService;
 import io.swagger.annotations.Api;
@@ -124,6 +125,27 @@ public class CartController {
         } catch (Exception e) {
             logger.error("Failed to clear cart", e);
             return ResponseEntity.status(500).body(ApiResponse.error(500, "清空失败"));
+        }
+    }
+
+    /**
+     * 更新商品选中状态
+     */
+    @PutMapping("/select")
+    @ApiOperation("更新商品选中状态")
+    public ResponseEntity<ApiResponse<Void>> updateItemsSelected(
+            @Valid @RequestBody CartSelectRequest request) {
+
+        try {
+            logger.info("Received update items selected request: {}", request);
+            cartService.updateItemsSelected(request.getProductIds(), request.getSelected());
+            return ResponseEntity.ok(ApiResponse.success(null, "更新成功"));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Failed to update items selected: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to update items selected", e);
+            return ResponseEntity.status(500).body(ApiResponse.error(500, "更新失败"));
         }
     }
 }
