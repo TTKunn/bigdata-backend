@@ -47,10 +47,10 @@ public class ProductService {
         validateCreateRequest(request);
 
         // 2. 处理图片上传
-        List<ProductImage> images = processImages(request);
+        ProductImage image = processImage(request);
 
         // 3. 构建商品对象
-        Product product = buildProduct(request, images);
+        Product product = buildProduct(request, image);
 
         // 4. 保存到HBase
         boolean saved = productHBaseService.saveProduct(product);
@@ -65,7 +65,7 @@ public class ProductService {
         CreateProductResponse response = new CreateProductResponse(
             product.getId(),
             product.getCreateTime(),
-            images
+            image
         );
 
         logger.info("Successfully created product: {}", product.getId());
@@ -101,25 +101,19 @@ public class ProductService {
     /**
      * 处理图片上传
      */
-    private List<ProductImage> processImages(CreateProductRequest request) throws IOException {
-        List<ProductImage> images = new ArrayList<>();
-
-        if (request.getImages() != null && !request.getImages().isEmpty()) {
-            for (CreateProductImageRequest imageRequest : request.getImages()) {
-                try {
-                    ProductImage image = hdfsService.uploadProductImage(imageRequest, request.getId());
-                    images.add(image);
-                    logger.debug("Successfully uploaded image: {}", image.getFilename());
-                } catch (Exception e) {
-                    logger.error("Failed to upload image: {}", imageRequest.getFilename(), e);
-                    // 清理已上传的图片
-                    cleanupUploadedImages(images);
-                    throw new RuntimeException("图片上传失败: " + e.getMessage());
-                }
+    private ProductImage processImage(CreateProductRequest request) throws IOException {
+        if (request.getImage() != null) {
+            try {
+                ProductImage image = hdfsService.uploadProductImage(request.getImage(), request.getId());
+                logger.debug("Successfully uploaded image: {}", image.getFilename());
+                return image;
+            } catch (Exception e) {
+                logger.error("Failed to upload image: {}", request.getImage().getFilename(), e);
+                throw new RuntimeException("图片上传失败: " + e.getMessage());
             }
         }
 
-        return images;
+        return null;
     }
 
     /**
@@ -139,7 +133,7 @@ public class ProductService {
     /**
      * 构建商品对象
      */
-    private Product buildProduct(CreateProductRequest request, List<ProductImage> images) {
+    private Product buildProduct(CreateProductRequest request, ProductImage image) {
         Product product = new Product();
         product.setId(request.getId());
         product.setName(request.getName());
@@ -150,7 +144,7 @@ public class ProductService {
         product.setDescription(request.getDescription());
         product.setSpec(request.getSpec());
         product.setTags(request.getTags());
-        product.setImages(images);
+        product.setImage(image);
         product.setStatus(ProductStatus.ACTIVE);
         product.setCreateTime(LocalDateTime.now());
         product.setUpdateTime(LocalDateTime.now());

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 商品创建响应DTO
@@ -19,17 +18,17 @@ public class CreateProductResponse {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
     private LocalDateTime createTime;
 
-    @JsonProperty("images")
-    private List<ProductImage> images;
+    @JsonProperty("image")
+    private ProductImage image;
 
     // 默认构造函数
     public CreateProductResponse() {}
 
     // 带参数构造函数
-    public CreateProductResponse(String productId, LocalDateTime createTime, List<ProductImage> images) {
+    public CreateProductResponse(String productId, LocalDateTime createTime, ProductImage image) {
         this.productId = productId;
         this.createTime = createTime;
-        this.images = images;
+        this.image = image;
     }
 
     // Getter和Setter方法
@@ -49,12 +48,12 @@ public class CreateProductResponse {
         this.createTime = createTime;
     }
 
-    public List<ProductImage> getImages() {
-        return images;
+    public ProductImage getImage() {
+        return image;
     }
 
-    public void setImages(List<ProductImage> images) {
-        this.images = images;
+    public void setImage(ProductImage image) {
+        this.image = image;
     }
 
     @Override
@@ -62,7 +61,7 @@ public class CreateProductResponse {
         return "CreateProductResponse{" +
                 "productId='" + productId + '\'' +
                 ", createTime=" + createTime +
-                ", images=" + images +
+                ", image=" + image +
                 '}';
     }
 }

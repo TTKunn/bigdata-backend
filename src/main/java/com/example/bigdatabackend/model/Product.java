@@ -40,8 +40,8 @@ public class Product {
     @JsonProperty("tags")
     private List<String> tags;
 
-    @JsonProperty("images")
-    private List<ProductImage> images;
+    @JsonProperty("image")
+    private ProductImage image;
 
     @JsonProperty("stock")
     private ProductStock stock;
@@ -144,12 +144,12 @@ public class Product {
         this.tags = tags;
     }
 
-    public List<ProductImage> getImages() {
-        return images;
+    public ProductImage getImage() {
+        return image;
     }
 
-    public void setImages(List<ProductImage> images) {
-        this.images = images;
+    public void setImage(ProductImage image) {
+        this.image = image;
     }
 
     public ProductStock getStock() {
@@ -196,7 +196,7 @@ public class Product {
                 ", description='" + description + '\'' +
                 ", spec=" + spec +
                 ", tags=" + tags +
-                ", images=" + images +
+                ", image=" + image +
                 ", stock=" + stock +
                 ", status=" + status +
                 ", createTime=" + createTime +

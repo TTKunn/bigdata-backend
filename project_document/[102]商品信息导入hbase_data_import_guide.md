@@ -58,7 +58,7 @@ put 'product_info', '0001_00000001_1704625800000', 'cf_base:create_time', '2024-
 
 put 'product_info', '0001_00000001_1704625800000', 'cf_detail:description', '美的变频空调，节能省电'
 put 'product_info', '0001_00000001_1704625800000', 'cf_detail:spec', '{"power":"1.5P","energy":"一级能效","feature":"变频"}'
-put 'product_info', '0001_00000001_1704625800000', 'cf_detail:images', '[{"id":"hdfs://bigdata01:9000/product_images/kongtiao.png","type":"main","size":102400,"upload_time":"2024-01-07 12:30:00"}]'
+put 'product_info', '0001_00000001_1704625800000', 'cf_detail:image', '{"id":"hdfs://bigdata01:9000/product_images/kongtiao.png","type":"main","size":102400,"upload_time":"2024-01-07 12:30:00"}'
 put 'product_info', '0001_00000001_1704625800000', 'cf_detail:tags', '["空调","节能","变频"]'
 
 put 'product_info', '0001_00000001_1704625800000', 'cf_stock:total_stock', '500'
@@ -85,7 +85,7 @@ put 'product_info', '0001_00000002_1704625800001', 'cf_base:create_time', '2024-
 
 put 'product_info', '0001_00000002_1704625800001', 'cf_detail:description', '华为旗舰智能手机，HarmonyOS 4.0'
 put 'product_info', '0001_00000002_1704625800001', 'cf_detail:spec', '{"screen":"6.82英寸","processor":"麒麟9000S","memory":"12GB+512GB","camera":"5000万像素"}'
-put 'product_info', '0001_00000002_1704625800001', 'cf_detail:images', '[{"id":"hdfs://bigdata01:9000/product_images/mate60pro.png","type":"main","size":245760,"upload_time":"2024-01-07 12:30:01"}]'
+put 'product_info', '0001_00000002_1704625800001', 'cf_detail:image', '{"id":"hdfs://bigdata01:9000/product_images/mate60pro.png","type":"main","size":245760,"upload_time":"2024-01-07 12:30:01"}'
 put 'product_info', '0001_00000002_1704625800001', 'cf_detail:tags', '["旗舰机","鸿蒙系统","5G"]'
 
 put 'product_info', '0001_00000002_1704625800001', 'cf_stock:total_stock', '1000'
@@ -112,7 +112,7 @@ put 'product_info', '0002_00000001_1704625800002', 'cf_base:create_time', '2024-
 
 put 'product_info', '0002_00000001_1704625800002', 'cf_detail:description', 'Redmi真无线耳机，40dB主动降噪'
 put 'product_info', '0002_00000001_1704625800002', 'cf_detail:spec', '{"battery":"30小时","noise_cancellation":"40dB","codec":"LHDC"}'
-put 'product_info', '0002_00000001_1704625800002', 'cf_detail:images', '[{"id":"hdfs://bigdata01:9000/product_images/redmibuds6.jpg","type":"main","size":153600,"upload_time":"2024-01-07 12:30:02"}]'
+put 'product_info', '0002_00000001_1704625800002', 'cf_detail:image', '{"id":"hdfs://bigdata01:9000/product_images/redmibuds6.jpg","type":"main","size":153600,"upload_time":"2024-01-07 12:30:02"}'
 put 'product_info', '0002_00000001_1704625800002', 'cf_detail:tags', '["耳机","降噪","真无线"]'
 
 put 'product_info', '0002_00000001_1704625800002', 'cf_stock:total_stock', '2000'
@@ -139,7 +139,7 @@ put 'product_info', '0001_00000003_1704625800003', 'cf_base:create_time', '2024-
 
 put 'product_info', '0001_00000003_1704625800003', 'cf_detail:description', '小米旗舰智能手机，骁龙8 Gen3'
 put 'product_info', '0001_00000003_1704625800003', 'cf_detail:spec', '{"screen":"6.73英寸","processor":"骁龙8 Gen3","memory":"12GB+512GB","camera":"5000万像素"}'
-put 'product_info', '0001_00000003_1704625800003', 'cf_detail:images', '[{"id":"hdfs://bigdata01:9000/product_images/xiaomi17ultra.png","type":"main","size":204800,"upload_time":"2024-01-07 12:30:03"}]'
+put 'product_info', '0001_00000003_1704625800003', 'cf_detail:image', '{"id":"hdfs://bigdata01:9000/product_images/xiaomi17ultra.png","type":"main","size":204800,"upload_time":"2024-01-07 12:30:03"}'
 put 'product_info', '0001_00000003_1704625800003', 'cf_detail:tags', '["旗舰机","骁龙8","5G"]'
 
 put 'product_info', '0001_00000003_1704625800003', 'cf_stock:total_stock', '800'

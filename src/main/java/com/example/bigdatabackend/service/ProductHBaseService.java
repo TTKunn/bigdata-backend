@@ -205,9 +205,9 @@ public class ProductHBaseService {
         }
 
         // 图片信息
-        if (product.getImages() != null && !product.getImages().isEmpty()) {
-            String imagesJson = objectMapper.writeValueAsString(product.getImages());
-            put.addColumn(cfDetailBytes, Bytes.toBytes("images"), Bytes.toBytes(imagesJson));
+        if (product.getImage() != null) {
+            String imageJson = objectMapper.writeValueAsString(product.getImage());
+            put.addColumn(cfDetailBytes, Bytes.toBytes("image"), Bytes.toBytes(imageJson));
         }
     }
 
@@ -346,10 +346,10 @@ public class ProductHBaseService {
         }
 
         // 图片信息
-        byte[] imagesBytes = result.getValue(cfDetailBytes, Bytes.toBytes("images"));
-        if (imagesBytes != null) {
-            List<ProductImage> images = objectMapper.readValue(imagesBytes, new TypeReference<List<ProductImage>>() {});
-            product.setImages(images);
+        byte[] imageBytes = result.getValue(cfDetailBytes, Bytes.toBytes("image"));
+        if (imageBytes != null) {
+            ProductImage image = objectMapper.readValue(imageBytes, ProductImage.class);
+            product.setImage(image);
         }
     }
 

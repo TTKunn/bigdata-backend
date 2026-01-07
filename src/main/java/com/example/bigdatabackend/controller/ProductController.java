@@ -275,9 +275,7 @@ public class ProductController {
                 imageRequest.setType(imageType != null && !imageType.trim().isEmpty() ? imageType.trim() : "main");
 
                 // 设置为单张图片
-                java.util.List<CreateProductImageRequest> imageRequests = new java.util.ArrayList<>();
-                imageRequests.add(imageRequest);
-                request.setImages(imageRequests);
+                request.setImage(imageRequest);
 
             } catch (Exception e) {
                 logger.warn("Failed to process image file: {}", image.getOriginalFilename(), e);
