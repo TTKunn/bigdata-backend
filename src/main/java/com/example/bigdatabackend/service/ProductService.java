@@ -4,6 +4,9 @@ import com.example.bigdatabackend.dto.CreateProductRequest;
 import com.example.bigdatabackend.dto.CreateProductResponse;
 import com.example.bigdatabackend.dto.CreateProductImageRequest;
 import com.example.bigdatabackend.dto.CreateProductStockRequest;
+import com.example.bigdatabackend.dto.ProductListQueryRequest;
+import com.example.bigdatabackend.dto.ProductListResponse;
+import com.example.bigdatabackend.dto.ProductSummaryDto;
 import com.example.bigdatabackend.model.Product;
 import com.example.bigdatabackend.model.ProductImage;
 import com.example.bigdatabackend.model.ProductStatus;
@@ -227,29 +230,53 @@ public class ProductService {
                 return null;
             }
 
+            // 检查必要字段是否存在
+            String name = cachedData.get("name");
+            if (name == null || name.trim().isEmpty()) {
+                logger.debug("Cached product data incomplete for productId: {}, missing name", productId);
+                return null;
+            }
+
             // 从缓存数据构建Product对象
             Product product = new Product();
             product.setId(productId);
-            product.setName(cachedData.get("name"));
+            product.setName(name);
             product.setCategory(cachedData.get("category"));
             product.setBrand(cachedData.get("brand"));
 
+            // 解析价格
             String priceStr = cachedData.get("price");
-            if (priceStr != null) {
-                product.setPrice(new java.math.BigDecimal(priceStr));
+            if (priceStr != null && !priceStr.trim().isEmpty()) {
+                try {
+                    product.setPrice(new java.math.BigDecimal(priceStr));
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid price format in cache for productId: {}", productId);
+                    return null;
+                }
             }
 
+            // 解析状态
             String statusStr = cachedData.get("status");
-            if (statusStr != null) {
-                product.setStatus(ProductStatus.fromCode(statusStr));
+            if (statusStr != null && !statusStr.trim().isEmpty()) {
+                try {
+                    product.setStatus(ProductStatus.fromCode(statusStr));
+                } catch (Exception e) {
+                    logger.warn("Invalid status format in cache for productId: {}", productId);
+                    return null;
+                }
             }
 
             // 获取库存信息
-            Integer stock = redisService.getStock(productId);
-            if (stock != null) {
-                ProductStock productStock = new ProductStock();
-                productStock.setTotal(stock);
-                product.setStock(productStock);
+            try {
+                Integer stock = redisService.getStock(productId);
+                if (stock != null) {
+                    ProductStock productStock = new ProductStock();
+                    productStock.setTotal(stock);
+                    product.setStock(productStock);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to get stock from cache for productId: {}", productId, e);
+                // 库存获取失败不影响商品信息返回
             }
 
             return product;
@@ -280,6 +307,83 @@ public class ProductService {
             logger.error("Failed to update stock for product: {}", productId, e);
             return false;
         }
+    }
+
+    /**
+     * 查询商品列表（带缓存和分页）
+     */
+    public ProductListResponse getProductList(ProductListQueryRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("查询请求不能为空");
+        }
+
+        try {
+            // 构建缓存Key
+            String cacheKey = buildListCacheKey(request);
+
+            // 尝试从缓存获取
+            ProductListResponse cached = getProductListFromCache(cacheKey);
+            if (cached != null) {
+                logger.debug("Retrieved product list from cache: {}", cacheKey);
+                return cached;
+            }
+
+            // 从HBase查询
+            ProductListResponse response = productHBaseService.getProductList(request);
+
+            // 回填缓存（只缓存前几页）
+            if (request.getPage() <= 3) { // 只缓存前3页
+                cacheProductList(cacheKey, response);
+            }
+
+            logger.debug("Retrieved product list from HBase and cached: {}", cacheKey);
+            return response;
+
+        } catch (Exception e) {
+            logger.error("Failed to get product list", e);
+            throw new RuntimeException("查询商品列表失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 从缓存获取商品列表
+     */
+    private ProductListResponse getProductListFromCache(String cacheKey) {
+        try {
+            // 这里可以实现Redis缓存逻辑
+            // 暂时返回null，总是从数据库查询
+            return null;
+        } catch (Exception e) {
+            logger.warn("Failed to get product list from cache: {}", cacheKey, e);
+            return null;
+        }
+    }
+
+    /**
+     * 缓存商品列表
+     */
+    private void cacheProductList(String cacheKey, ProductListResponse response) {
+        try {
+            // 这里可以实现Redis缓存逻辑
+            // 暂时不缓存
+            logger.debug("Product list caching not implemented yet: {}", cacheKey);
+        } catch (Exception e) {
+            logger.warn("Failed to cache product list: {}", cacheKey, e);
+        }
+    }
+
+    /**
+     * 构建列表缓存Key
+     */
+    private String buildListCacheKey(ProductListQueryRequest request) {
+        return String.format("product:list:%s:%s:%s:%d:%d:%s:%s",
+                request.getCategory() != null ? request.getCategory() : "all",
+                request.getBrand() != null ? request.getBrand() : "all",
+                request.getStatus() != null ? request.getStatus() : "ACTIVE",
+                request.getPage(),
+                request.getSize(),
+                request.getSortBy(),
+                request.getSortOrder());
     }
 
     /**

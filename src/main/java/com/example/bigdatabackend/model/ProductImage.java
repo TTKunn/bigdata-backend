@@ -22,7 +22,7 @@ public class ProductImage {
     @JsonProperty("size")
     private long size;
 
-    @JsonProperty("uploadTime")
+    @JsonProperty("upload_time")  // HBase中使用蛇形命名
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
     private LocalDateTime uploadTime;
 

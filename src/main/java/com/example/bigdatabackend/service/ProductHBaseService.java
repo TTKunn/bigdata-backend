@@ -4,18 +4,23 @@ import com.example.bigdatabackend.model.Product;
 import com.example.bigdatabackend.model.ProductImage;
 import com.example.bigdatabackend.model.ProductStatus;
 import com.example.bigdatabackend.model.ProductStock;
+import com.example.bigdatabackend.dto.ProductListQueryRequest;
+import com.example.bigdatabackend.dto.ProductListResponse;
+import com.example.bigdatabackend.dto.ProductSummaryDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.filter.PrefixFilter;
+import org.apache.hadoop.hbase.filter.*;
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,11 +37,13 @@ public class ProductHBaseService {
 
     private static final Logger logger = LoggerFactory.getLogger(ProductHBaseService.class);
 
-    private static final String TABLE_NAME = "product_info";
     private static final String CF_BASE = "cf_base";
     private static final String CF_DETAIL = "cf_detail";
     private static final String CF_STOCK = "cf_stock";
     private static final String CF_STAT = "cf_stat";
+
+    @Value("${hbase.product.table.name}")
+    private String tableNameConfig;
 
     @Autowired
     private Connection hBaseConnection;
@@ -51,11 +58,14 @@ public class ProductHBaseService {
     @PostConstruct
     public void init() {
         objectMapper = new ObjectMapper();
-        tableName = TableName.valueOf(TABLE_NAME);
+        // 注册Java Time模块以支持LocalDateTime等类型
+        objectMapper.findAndRegisterModules();
+        this.tableName = TableName.valueOf(tableNameConfig);
         cfBaseBytes = Bytes.toBytes(CF_BASE);
         cfDetailBytes = Bytes.toBytes(CF_DETAIL);
         cfStockBytes = Bytes.toBytes(CF_STOCK);
         cfStatBytes = Bytes.toBytes(CF_STAT);
+        logger.info("ProductHBaseService initialized with table: {}", tableName.getNameAsString());
     }
 
     /**
@@ -95,19 +105,31 @@ public class ProductHBaseService {
 
     /**
      * 从HBase获取商品
-     * 注意：由于RowKey设计较为复杂，这里使用扫描的方式查找商品
+     * 注意：接口商品ID为12位格式：{category_id(4位)}{product_id(8位)}
+     * HBase RowKey格式：{category_id}_{product_id}_{timestamp}
      */
     public Product getProduct(String productId) throws IOException {
         if (productId == null) {
             return null;
         }
 
+        // 验证商品ID格式
+        if (productId.length() != 12) {
+            logger.warn("Invalid product ID format: {} (length: {})", productId, productId.length());
+            return null;
+        }
+
         try (Table table = hBaseConnection.getTable(tableName)) {
+            // 从12位商品ID中解析category_id和product_id
+            String categoryId = productId.substring(0, 4);
+            String productIdPart = productId.substring(4, 12);
+
+            // 构建RowKey前缀：{category_id}_{product_id}_
+            String rowKeyPrefix = categoryId + "_" + productIdPart + "_";
+
             // 构建扫描器，查找指定商品ID的记录
             Scan scan = new Scan();
-            // 设置过滤器：RowKey以商品ID开头
-            String prefix = productId + "_";
-            scan.setRowPrefixFilter(Bytes.toBytes(prefix));
+            scan.setRowPrefixFilter(Bytes.toBytes(rowKeyPrefix));
 
             try (ResultScanner scanner = table.getScanner(scan)) {
                 for (Result result : scanner) {
@@ -127,16 +149,23 @@ public class ProductHBaseService {
 
     /**
      * 生成RowKey
+     * RowKey格式: {category_id}_{product_id}_{timestamp}
+     * 注意：接口使用12位productId格式，但RowKey中只使用后8位
      */
     private String generateRowKey(Product product) {
-        // {category_id}_{product_id}_{timestamp}
-        String categoryId = product.getCategory();
-        String productId = product.getId();
+        String categoryId = product.getCategory();  // 4位分类ID
+        String fullProductId = product.getId();  // 12位完整商品ID
+
+        // 从12位商品ID中提取后8位作为RowKey中的product_id部分
+        // 如果不是12位则直接使用（兼容性处理）
+        String productIdPart = fullProductId.length() == 12 ?
+            fullProductId.substring(4, 12) : fullProductId;
+
         long timestamp = product.getCreateTime() != null ?
             product.getCreateTime().toEpochSecond(java.time.ZoneOffset.UTC) * 1000 :
             System.currentTimeMillis();
 
-        return String.format("%s_%s_%013d", categoryId, productId, timestamp);
+        return String.format("%s_%s_%013d", categoryId, productIdPart, timestamp);
     }
 
 
@@ -317,7 +346,9 @@ public class ProductHBaseService {
             if (timeStr.endsWith("Z")) {
                 timeStr = timeStr.substring(0, timeStr.length() - 1);
             }
-            product.setCreateTime(LocalDateTime.parse(timeStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            // 使用自定义格式解析：yyyy-MM-dd HH:mm:ss
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            product.setCreateTime(LocalDateTime.parse(timeStr, formatter));
         }
     }
 
@@ -348,8 +379,13 @@ public class ProductHBaseService {
         // 图片信息
         byte[] imageBytes = result.getValue(cfDetailBytes, Bytes.toBytes("image"));
         if (imageBytes != null) {
-            ProductImage image = objectMapper.readValue(imageBytes, ProductImage.class);
-            product.setImage(image);
+            try {
+                ProductImage image = objectMapper.readValue(imageBytes, ProductImage.class);
+                product.setImage(image);
+            } catch (Exception e) {
+                logger.warn("Failed to parse image for product, skipping image: {}", e.getMessage());
+                // 图片解析失败不影响商品其他信息的返回
+            }
         }
     }
 
@@ -384,6 +420,197 @@ public class ProductHBaseService {
         }
 
         product.setStock(stock);
+    }
+
+    /**
+     * 查询商品列表（支持筛选，返回所有匹配商品）
+     */
+    public ProductListResponse getProductList(ProductListQueryRequest request) throws IOException {
+        if (request == null) {
+            throw new IllegalArgumentException("查询请求不能为空");
+        }
+
+        try (Table table = hBaseConnection.getTable(tableName)) {
+            // 构建查询扫描器
+            Scan scan = new Scan();
+
+            // 设置筛选条件
+            List<Filter> filters = buildListFilters(request);
+            if (!filters.isEmpty()) {
+                FilterList filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL, filters);
+                scan.setFilter(filterList);
+            }
+
+            // 设置排序（通过RowKey自然排序）
+            if ("desc".equalsIgnoreCase(request.getSortOrder())) {
+                scan.setReversed(true); // 反转扫描，降序
+            }
+
+            // 执行查询，返回所有匹配的商品
+            List<ProductSummaryDto> products = new ArrayList<>();
+            try (ResultScanner scanner = table.getScanner(scan)) {
+                for (Result result : scanner) {
+                    if (!result.isEmpty()) {
+                        ProductSummaryDto summary = parseProductSummary(result);
+                        if (summary != null) {
+                            products.add(summary);
+                        }
+                    }
+                }
+            }
+
+            // 返回查询结果，total等于实际查询到的数量
+            long total = products.size();
+            return new ProductListResponse(total, 1, (int)total, products);
+
+        } catch (IOException e) {
+            logger.error("Failed to query product list", e);
+            throw e;
+        }
+    }
+
+    /**
+     * 构建列表查询筛选条件
+     */
+    private List<Filter> buildListFilters(ProductListQueryRequest request) {
+        List<Filter> filters = new ArrayList<>();
+
+        // 分类筛选（通过RowKey前缀）
+        if (request.getCategory() != null && !request.getCategory().trim().isEmpty()) {
+            String prefix = request.getCategory();
+            filters.add(new PrefixFilter(Bytes.toBytes(prefix)));
+        }
+
+        // 状态筛选
+        if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
+            SingleColumnValueFilter statusFilter = new SingleColumnValueFilter(
+                cfBaseBytes, Bytes.toBytes("status"), CompareOperator.EQUAL,
+                Bytes.toBytes(request.getStatus()));
+            statusFilter.setFilterIfMissing(true);
+            filters.add(statusFilter);
+        }
+
+        // 品牌筛选
+        if (request.getBrand() != null && !request.getBrand().trim().isEmpty()) {
+            SingleColumnValueFilter brandFilter = new SingleColumnValueFilter(
+                cfBaseBytes, Bytes.toBytes("brand"), CompareOperator.EQUAL,
+                new BinaryComparator(Bytes.toBytes(request.getBrand())));
+            brandFilter.setFilterIfMissing(true);
+            filters.add(brandFilter);
+        }
+
+        return filters;
+    }
+
+    /**
+     * 获取总数（简化实现）
+     */
+    private long getTotalCount(ProductListQueryRequest request) {
+        try (Table table = hBaseConnection.getTable(tableName)) {
+            Scan scan = new Scan();
+
+            // 设置筛选条件
+            List<Filter> filters = buildListFilters(request);
+            if (!filters.isEmpty()) {
+                FilterList filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL, filters);
+                scan.setFilter(filterList);
+            }
+
+            long count = 0;
+            try (ResultScanner scanner = table.getScanner(scan)) {
+                for (Result result : scanner) {
+                    if (!result.isEmpty()) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        } catch (Exception e) {
+            logger.warn("Failed to count products", e);
+            return 0;
+        }
+    }
+
+    /**
+     * 解析Result为ProductSummaryDto
+     */
+    private ProductSummaryDto parseProductSummary(Result result) throws IOException {
+        if (result == null || result.isEmpty()) {
+            return null;
+        }
+
+        ProductSummaryDto summary = new ProductSummaryDto();
+
+        // 从RowKey解析商品ID
+        String rowKey = Bytes.toString(result.getRow());
+        String productId = parseProductIdFromRowKey(rowKey);
+        summary.setId(productId);
+
+        // 解析基本信息
+        byte[] nameBytes = result.getValue(cfBaseBytes, Bytes.toBytes("name"));
+        if (nameBytes != null) {
+            summary.setName(Bytes.toString(nameBytes));
+        }
+
+        byte[] categoryBytes = result.getValue(cfBaseBytes, Bytes.toBytes("category"));
+        if (categoryBytes != null) {
+            summary.setCategory(Bytes.toString(categoryBytes));
+        }
+
+        byte[] brandBytes = result.getValue(cfBaseBytes, Bytes.toBytes("brand"));
+        if (brandBytes != null) {
+            summary.setBrand(Bytes.toString(brandBytes));
+        }
+
+        byte[] priceBytes = result.getValue(cfBaseBytes, Bytes.toBytes("price"));
+        if (priceBytes != null) {
+            try {
+                summary.setPrice(new java.math.BigDecimal(Bytes.toString(priceBytes)));
+            } catch (NumberFormatException e) {
+                logger.warn("Invalid price format for product: {}", productId);
+            }
+        }
+
+        byte[] statusBytes = result.getValue(cfBaseBytes, Bytes.toBytes("status"));
+        if (statusBytes != null) {
+            summary.setStatus(Bytes.toString(statusBytes));
+        }
+
+        byte[] timeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("create_time"));
+        if (timeBytes != null) {
+            String timeStr = Bytes.toString(timeBytes);
+            if (timeStr.endsWith("Z")) {
+                timeStr = timeStr.substring(0, timeStr.length() - 1);
+            }
+            try {
+                summary.setCreateTime(java.time.LocalDateTime.parse(timeStr,
+                    java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            } catch (Exception e) {
+                logger.warn("Invalid time format for product: {}", productId);
+            }
+        }
+
+        return summary;
+    }
+
+    /**
+     * 从RowKey解析商品ID
+     * RowKey格式: {category_id}_{product_id}_{timestamp}
+     */
+    private String parseProductIdFromRowKey(String rowKey) {
+        if (rowKey == null || !rowKey.contains("_")) {
+            return null;
+        }
+
+        String[] parts = rowKey.split("_");
+        if (parts.length >= 2) {
+            String categoryId = parts[0];
+            String productId = parts[1];
+            // 返回12位格式：category_id(4位) + product_id(8位)
+            return String.format("%-4s%-8s", categoryId, productId).replace(' ', '0');
+        }
+
+        return null;
     }
 
     /**

@@ -1,4 +1,3 @@
-// 此文件仅用于环境联调测试，测试完成后请删除
 package com.example.bigdatabackend.config;
 
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -14,18 +13,17 @@ import javax.annotation.PreDestroy;
 import java.io.IOException;
 
 /**
- * HBase配置类 - 仅用于环境联调测试
- * 测试完成后请删除此文件
+ * HBase配置类
  */
 @Configuration
-public class TestHBaseConfig {
+public class HBaseConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(TestHBaseConfig.class);
+    private static final Logger logger = LoggerFactory.getLogger(HBaseConfig.class);
 
     @Value("${hbase.zookeeper.quorum}")
     private String zookeeperQuorum;
 
-    @Value("${hbase.zookeeper.property.clientPort}")
+    @Value("${hbase.zookeeper.property.clientPort:2181}")
     private String zookeeperPort;
 
     @Value("${hbase.client.retries.number:3}")
@@ -42,7 +40,7 @@ public class TestHBaseConfig {
 
     private Connection connection;
 
-    @Bean(name = "testHBaseConnection")
+    @Bean
     public Connection hBaseConnection() throws IOException {
         // Set system properties to suppress Hadoop warnings on Windows
         System.setProperty("hadoop.home.dir", System.getProperty("java.io.tmpdir"));

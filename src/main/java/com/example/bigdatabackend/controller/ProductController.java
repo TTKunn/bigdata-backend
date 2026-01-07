@@ -6,6 +6,8 @@ import com.example.bigdatabackend.dto.CreateProductResponse;
 import com.example.bigdatabackend.dto.CreateProductFormRequest;
 import com.example.bigdatabackend.dto.CreateProductStockRequest;
 import com.example.bigdatabackend.dto.CreateProductImageRequest;
+import com.example.bigdatabackend.dto.ProductListQueryRequest;
+import com.example.bigdatabackend.dto.ProductListResponse;
 import com.example.bigdatabackend.model.Product;
 import com.example.bigdatabackend.service.ProductService;
 import io.swagger.annotations.Api;
@@ -27,13 +29,12 @@ import com.google.gson.reflect.TypeToken;
 import jakarta.validation.Valid;
 
 /**
- * 商品管理控制器 - 仅开发环境使用
+ * 商品管理控制器
  * 提供商品创建和管理相关的REST API接口
  */
 @RestController
-@RequestMapping("/api/dev/product")
-@Profile("dev")  // 仅在开发环境启用
-@Api(tags = "商品管理接口", description = "开发环境专用商品管理接口")
+@RequestMapping("/api/product")
+@Api(tags = "商品管理接口", description = "商品管理相关接口")
 @Validated
 public class ProductController {
 
@@ -117,32 +118,99 @@ public class ProductController {
     }
 
     /**
+     * 获取商品列表接口
+     */
+    @GetMapping("/list")
+    @ApiOperation(value = "获取商品列表", notes = "分页查询商品列表，支持条件筛选和排序")
+    public ResponseEntity<ApiResponse<ProductListResponse>> getProductList(
+            @ApiParam(value = "页码", defaultValue = "1") @RequestParam(required = false) Integer page,
+            @ApiParam(value = "每页大小", defaultValue = "20") @RequestParam(required = false) Integer size,
+            @ApiParam(value = "商品分类ID") @RequestParam(required = false) String category,
+            @ApiParam(value = "品牌名称") @RequestParam(required = false) String brand,
+            @ApiParam(value = "商品状态") @RequestParam(required = false) String status,
+            @ApiParam(value = "排序字段") @RequestParam(required = false) String sortBy,
+            @ApiParam(value = "排序方向") @RequestParam(required = false) String sortOrder) {
+
+        logger.info("Received product list request - page: {}, size: {}, category: {}, brand: {}, status: {}, sortBy: {}, sortOrder: {}",
+                   page, size, category, brand, status, sortBy, sortOrder);
+
+        try {
+            // 构建查询请求
+            ProductListQueryRequest request = new ProductListQueryRequest();
+            request.setPage(page);
+            request.setSize(size);
+            request.setCategory(category);
+            request.setBrand(brand);
+            request.setStatus(status);
+            request.setSortBy(sortBy);
+            request.setSortOrder(sortOrder);
+
+            // 查询商品列表
+            ProductListResponse response = productService.getProductList(request);
+
+            logger.info("Successfully retrieved product list - total: {}, page: {}, size: {}",
+                       response.getTotal(), response.getPage(), response.getSize());
+            return ResponseEntity.ok(ApiResponse.success(response, "查询成功"));
+
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid request parameters for product list: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to query product list", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(500, "查询失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 获取商品信息接口
      */
     @GetMapping("/{productId}")
     @ApiOperation(value = "获取商品信息", notes = "根据商品ID获取商品详细信息")
     public ResponseEntity<ApiResponse<Product>> getProduct(
-            @ApiParam(value = "商品ID", required = true, example = "00010001")
+            @ApiParam(value = "商品ID", required = true, example = "000100000001")
             @PathVariable String productId) {
 
         logger.info("Received product query request for productId: {}", productId);
+
+        // 参数校验
+        if (productId == null || productId.trim().isEmpty()) {
+            logger.warn("Product ID is null or empty");
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, "商品ID不能为空"));
+        }
+
+        if (productId.length() != 12) {
+            logger.warn("Invalid product ID format: {} (length: {})", productId, productId.length());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, "商品ID格式不正确，应为12位字符"));
+        }
 
         try {
             Product product = productService.getProduct(productId);
 
             if (product != null) {
                 logger.info("Successfully retrieved product: {}", productId);
-                return ResponseEntity.ok(ApiResponse.success(product, "商品查询成功"));
+                return ResponseEntity.ok(ApiResponse.success(product, "查询成功"));
             } else {
                 logger.warn("Product not found: {}", productId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error(404, "商品不存在"));
             }
 
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid request parameters for product query: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, e.getMessage()));
+        } catch (RuntimeException e) {
+            logger.warn("Product not found: {}", productId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(404, e.getMessage()));
         } catch (Exception e) {
-            logger.error("Failed to get product: {}", productId, e);
+            logger.error("Failed to query product: {}", productId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(500, "商品查询失败: " + e.getMessage()));
+                    .body(ApiResponse.error(500, "查询失败: " + e.getMessage()));
         }
     }
 
