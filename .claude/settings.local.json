@@ -20,7 +20,10 @@
       "Bash(powershell.exe -Command \"Stop-Process -Id 1216 -Force\")",
       "Bash(powershell.exe -Command \"Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue\")",
       "Bash(timeout /t 30 /nobreak)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(.\\\\mvnw.cmd clean compile:*)",
+      "Bash(mvnw.cmd clean compile:*)",
+      "Bash(mvnw.cmd spring-boot:run:*)"
     ]
   }
 }

@@ -226,4 +226,110 @@ public class RedisService {
             logger.error("Failed to delete product caches", e);
         }
     }
+
+    // ==================== 购物车相关方法 ====================
+
+    /**
+     * 设置Hash字段值
+     */
+    public void hset(String key, String field, String value) {
+        if (key == null || field == null || value == null) {
+            logger.warn("Cannot hset: key, field or value is null");
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            jedis.hset(key, field, value);
+            logger.debug("Set hash field: key={}, field={}", key, field);
+        } catch (Exception e) {
+            logger.error("Failed to hset: key={}, field={}", key, field, e);
+        }
+    }
+
+    /**
+     * 获取Hash字段值
+     */
+    public String hget(String key, String field) {
+        if (key == null || field == null) {
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String value = jedis.hget(key, field);
+            logger.debug("Get hash field: key={}, field={}, found={}", key, field, value != null);
+            return value;
+        } catch (Exception e) {
+            logger.error("Failed to hget: key={}, field={}", key, field, e);
+            return null;
+        }
+    }
+
+    /**
+     * 获取Hash所有字段
+     */
+    public Map<String, String> hgetAll(String key) {
+        if (key == null) {
+            return new HashMap<>();
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Map<String, String> data = jedis.hgetAll(key);
+            logger.debug("Get all hash fields: key={}, size={}", key, data != null ? data.size() : 0);
+            return data != null ? data : new HashMap<>();
+        } catch (Exception e) {
+            logger.error("Failed to hgetAll: key={}", key, e);
+            return new HashMap<>();
+        }
+    }
+
+    /**
+     * 删除Hash字段
+     */
+    public void hdel(String key, String... fields) {
+        if (key == null || fields == null || fields.length == 0) {
+            logger.warn("Cannot hdel: key or fields is null/empty");
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            jedis.hdel(key, fields);
+            logger.debug("Deleted hash fields: key={}, fields={}", key, fields.length);
+        } catch (Exception e) {
+            logger.error("Failed to hdel: key={}", key, e);
+        }
+    }
+
+    /**
+     * 删除整个Key
+     */
+    public void del(String key) {
+        if (key == null) {
+            logger.warn("Cannot del: key is null");
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            jedis.del(key);
+            logger.debug("Deleted key: {}", key);
+        } catch (Exception e) {
+            logger.error("Failed to del: key={}", key, e);
+        }
+    }
+
+    /**
+     * 设置Key过期时间
+     */
+    public void expire(String key, int seconds) {
+        if (key == null || seconds <= 0) {
+            logger.warn("Cannot expire: key is null or seconds <= 0");
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            jedis.expire(key, seconds);
+            logger.debug("Set expiration for key: {}, seconds={}", key, seconds);
+        } catch (Exception e) {
+            logger.error("Failed to expire: key={}", key, e);
+        }
+    }
 }
