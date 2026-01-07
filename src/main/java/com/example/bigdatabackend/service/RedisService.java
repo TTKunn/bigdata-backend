@@ -332,4 +332,43 @@ public class RedisService {
             logger.error("Failed to expire: key={}", key, e);
         }
     }
+
+    // ==================== 订单相关方法 ====================
+
+    /**
+     * 原子递增（用于订单号序列号生成）
+     */
+    public Long incr(String key) {
+        if (key == null) {
+            logger.warn("Cannot incr: key is null");
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Long value = jedis.incr(key);
+            logger.debug("Incremented key: {}, new value={}", key, value);
+            return value;
+        } catch (Exception e) {
+            logger.error("Failed to incr: key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * 增加库存（用于回滚）
+     */
+    public void incrStock(String productId, int quantity) {
+        if (productId == null || quantity <= 0) {
+            logger.warn("Invalid parametersck increment: productId={}, quantity={}", productId, quantity);
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "stock:" + productId;
+            jedis.incrBy(key, quantity);
+            logger.debug("Incremented stock for productId: {} by {}", productId, quantity);
+        } catch (Exception e) {
+            logger.error("Failed to increment stock for productId: {}", productId, e);
+        }
+    }
 }

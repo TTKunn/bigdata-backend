@@ -1,0 +1,1 @@
+create 'order_history', 'cf_base', 'cf_address', 'cf_items', 'cf_logistics'
