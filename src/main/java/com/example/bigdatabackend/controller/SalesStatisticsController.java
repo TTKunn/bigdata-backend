@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/statistics")
-@Profile("dev")  // 仅开发环境启用
 @Api(tags = "销售统计管理")
 public class SalesStatisticsController {
 
