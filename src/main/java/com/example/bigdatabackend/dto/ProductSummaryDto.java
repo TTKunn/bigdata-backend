@@ -36,6 +36,9 @@ public class ProductSummaryDto {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
     private LocalDateTime createTime;
 
+    @JsonProperty("imageUrl")
+    private String imageUrl;  // 商品图片HTTP访问URL
+
     // 默认构造函数
     public ProductSummaryDto() {}
 
@@ -112,6 +115,14 @@ public class ProductSummaryDto {
         this.description = description;
     }
 
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
     @Override
     public String toString() {
         return "ProductSummaryDto{" +
@@ -123,6 +134,7 @@ public class ProductSummaryDto {
                 ", status='" + status + '\'' +
                 ", description='" + description + '\'' +
                 ", createTime=" + createTime +
+                ", imageUrl='" + imageUrl + '\'' +
                 '}';
     }
 }

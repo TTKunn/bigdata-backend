@@ -14,6 +14,7 @@ import java.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * HDFS服务类 - 处理图片上传和管理
@@ -53,7 +54,9 @@ public class HdfsService {
         productImage.setType(request.getType());
         productImage.setFilename(request.getFilename());
         productImage.setSize(imageData.length);
-        productImage.setUploadTime(LocalDateTime.now());
+        // 使用String格式存储时间，与HBase中的格式保持一致
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        productImage.setUploadTime(LocalDateTime.now().format(formatter));
 
         logger.info("Successfully uploaded image to HDFS: {}", hdfsPath);
         return productImage;
@@ -148,6 +151,43 @@ public class HdfsService {
         } catch (IOException e) {
             logger.error("Failed to delete HDFS file: {}", hdfsPath, e);
             return false;
+        }
+    }
+
+    /**
+     * 从HDFS读取图片数据
+     *
+     * @param filename 图片文件名（如：kongtiao.png）
+     * @return 图片字节数组
+     * @throws IOException 读取失败时抛出异常
+     */
+    public byte[] readImage(String filename) throws IOException {
+        // 构建HDFS完整路径
+        String hdfsPath = "/product_images/" + filename;
+        Path path = new Path(hdfsPath);
+
+        logger.info("Reading image from HDFS: {}", hdfsPath);
+
+        // 检查文件是否存在
+        if (!hdfsFileSystem.exists(path)) {
+            logger.warn("Image file not found in HDFS: {}", hdfsPath);
+            return null;
+        }
+
+        // 读取文件内容
+        try (org.apache.hadoop.fs.FSDataInputStream inputStream = hdfsFileSystem.open(path)) {
+            // 获取文件大小
+            long fileSize = hdfsFileSystem.getFileStatus(path).getLen();
+
+            // 读取文件内容到字节数组
+            byte[] imageData = new byte[(int) fileSize];
+            inputStream.readFully(imageData);
+
+            logger.info("Successfully read image from HDFS: {}, size: {} bytes", hdfsPath, fileSize);
+            return imageData;
+        } catch (IOException e) {
+            logger.error("Failed to read image from HDFS: {}", hdfsPath, e);
+            throw e;
         }
     }
 

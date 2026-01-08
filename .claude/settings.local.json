@@ -35,7 +35,11 @@
       "Bash(ssh:*)",
       "Bash(git checkout:*)",
       "Bash(timeout /t 5 /nobreak)",
-      "Bash(start:*)"
+      "Bash(start:*)",
+      "Bash(python:*)",
+      "Bash(timeout:*)",
+      "Bash(redis-cli:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

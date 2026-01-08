@@ -2,6 +2,7 @@ package com.example.bigdatabackend.service;
 
 import com.example.bigdatabackend.model.Product;
 import com.example.bigdatabackend.model.ProductStatus;
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,7 @@ public class RedisService {
 
         try (Jedis jedis = jedisPool.getResource()) {
             String key = "product:cache:" + product.getId();
+            Gson gson = new Gson();
 
             Map<String, String> data = new HashMap<>();
             data.put("name", product.getName() != null ? product.getName() : "");
@@ -42,6 +44,11 @@ public class RedisService {
             data.put("brand", product.getBrand() != null ? product.getBrand() : "");
             data.put("price", product.getPrice() != null ? product.getPrice().toString() : "0.00");
             data.put("status", product.getStatus() != null ? product.getStatus().getCode() : ProductStatus.ACTIVE.getCode());
+
+            // 缓存图片信息（JSON格式）
+            if (product.getImage() != null) {
+                data.put("image", gson.toJson(product.getImage()));
+            }
 
             jedis.hmset(key, data);
             jedis.expire(key, 300); // 5分钟过期

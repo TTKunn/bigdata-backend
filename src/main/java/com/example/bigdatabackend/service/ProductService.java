@@ -11,6 +11,7 @@ import com.example.bigdatabackend.model.Product;
 import com.example.bigdatabackend.model.ProductImage;
 import com.example.bigdatabackend.model.ProductStatus;
 import com.example.bigdatabackend.model.ProductStock;
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,47 @@ public class ProductService {
 
     @Autowired
     private HdfsService hdfsService;
+
+    // 服务器基础URL，用于构建图片访问URL
+    private static final String SERVER_BASE_URL = "http://localhost:8080";
+
+    /**
+     * 将HDFS路径转换为HTTP访问URL
+     * @param hdfsPath HDFS完整路径，如：hdfs://bigdata01:9000/product_images/kongtiao.png
+     * @return HTTP访问URL，如：http://localhost:8080/api/images/kongtiao.png
+     */
+    private String convertHdfsPathToUrl(String hdfsPath) {
+        if (hdfsPath == null || hdfsPath.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            // 从HDFS路径中提取文件名
+            // hdfs://bigdata01:9000/product_images/kongtiao.png -> kongtiao.png
+            // 或 hdfs://192.168.32.200:9000/product_images/kongtiao.png -> kongtiao.png
+            if (hdfsPath.contains("/product_images/")) {
+                String filename = hdfsPath.substring(hdfsPath.lastIndexOf('/') + 1);
+                return SERVER_BASE_URL + "/api/images/" + filename;
+            }
+
+            logger.warn("Invalid HDFS path format: {}", hdfsPath);
+            return null;
+        } catch (Exception e) {
+            logger.error("Failed to convert HDFS path to URL: {}", hdfsPath, e);
+            return null;
+        }
+    }
+
+    /**
+     * 为Product对象设置图片URL
+     */
+    private void setProductImageUrl(Product product) {
+        if (product != null && product.getImage() != null) {
+            ProductImage image = product.getImage();
+            String url = convertHdfsPathToUrl(image.getId());
+            image.setUrl(url);
+        }
+    }
 
     /**
      * 创建商品
@@ -198,6 +240,8 @@ public class ProductService {
             // 首先尝试从缓存获取
             Product product = getProductFromCache(productId);
             if (product != null) {
+                // 设置图片URL
+                setProductImageUrl(product);
                 logger.debug("Retrieved product from cache: {}", productId);
                 return product;
             }
@@ -210,6 +254,8 @@ public class ProductService {
                 if (product.getStock() != null) {
                     redisService.setStock(productId, product.getStock().getTotal());
                 }
+                // 设置图片URL
+                setProductImageUrl(product);
                 logger.debug("Retrieved product from HBase and cached: {}", productId);
             }
 
@@ -263,6 +309,19 @@ public class ProductService {
                 } catch (Exception e) {
                     logger.warn("Invalid status format in cache for productId: {}", productId);
                     return null;
+                }
+            }
+
+            // 解析图片信息（从JSON字符串）
+            String imageJson = cachedData.get("image");
+            if (imageJson != null && !imageJson.trim().isEmpty()) {
+                try {
+                    Gson gson = new Gson();
+                    ProductImage image = gson.fromJson(imageJson, ProductImage.class);
+                    product.setImage(image);
+                    logger.debug("Successfully parsed image from cache for productId: {}", productId);
+                } catch (Exception e) {
+                    logger.warn("Failed to parse image from cache for productId: {}", productId, e);
                 }
             }
 
@@ -330,6 +389,16 @@ public class ProductService {
 
             // 从HBase查询
             ProductListResponse response = productHBaseService.getProductList(request);
+
+            // 为列表中的每个商品转换图片URL
+            if (response != null && response.getProducts() != null) {
+                for (ProductSummaryDto product : response.getProducts()) {
+                    if (product.getImageUrl() != null) {
+                        String httpUrl = convertHdfsPathToUrl(product.getImageUrl());
+                        product.setImageUrl(httpUrl);
+                    }
+                }
+            }
 
             // 回填缓存（只缓存前几页）
             if (request.getPage() <= 3) { // 只缓存前3页

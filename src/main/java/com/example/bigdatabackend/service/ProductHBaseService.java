@@ -60,6 +60,8 @@ public class ProductHBaseService {
         objectMapper = new ObjectMapper();
         // 注册Java Time模块以支持LocalDateTime等类型
         objectMapper.findAndRegisterModules();
+        // 配置时间格式
+        objectMapper.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Shanghai"));
         this.tableName = TableName.valueOf(tableNameConfig);
         cfBaseBytes = Bytes.toBytes(CF_BASE);
         cfDetailBytes = Bytes.toBytes(CF_DETAIL);
@@ -580,6 +582,20 @@ public class ProductHBaseService {
         byte[] descriptionBytes = result.getValue(cfDetailBytes, Bytes.toBytes("description"));
         if (descriptionBytes != null) {
             summary.setDescription(Bytes.toString(descriptionBytes));
+        }
+
+        // 解析图片信息（从cf_detail列族）
+        byte[] imageBytes = result.getValue(cfDetailBytes, Bytes.toBytes("image"));
+        if (imageBytes != null) {
+            try {
+                ProductImage image = objectMapper.readValue(imageBytes, ProductImage.class);
+                // 从HDFS路径提取文件名作为临时标识
+                if (image != null && image.getId() != null) {
+                    summary.setImageUrl(image.getId()); // 暂时存储HDFS路径，后续在Service层转换
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to parse image for product: {}, skipping image", productId);
+            }
         }
 
         byte[] timeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("create_time"));

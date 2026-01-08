@@ -1,9 +1,6 @@
 package com.example.bigdatabackend.model;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.time.LocalDateTime;
 
 /**
  * 商品图片模型
@@ -23,14 +20,16 @@ public class ProductImage {
     private long size;
 
     @JsonProperty("upload_time")  // HBase中使用蛇形命名
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    private LocalDateTime uploadTime;
+    private String uploadTime;    // 使用String类型避免Jackson反序列化问题
+
+    @JsonProperty("url")
+    private String url;      // HTTP访问URL
 
     // 默认构造函数
     public ProductImage() {}
 
     // 带参数构造函数
-    public ProductImage(String id, String type, String filename, long size, LocalDateTime uploadTime) {
+    public ProductImage(String id, String type, String filename, long size, String uploadTime) {
         this.id = id;
         this.type = type;
         this.filename = filename;
@@ -71,12 +70,20 @@ public class ProductImage {
         this.size = size;
     }
 
-    public LocalDateTime getUploadTime() {
+    public String getUploadTime() {
         return uploadTime;
     }
 
-    public void setUploadTime(LocalDateTime uploadTime) {
+    public void setUploadTime(String uploadTime) {
         this.uploadTime = uploadTime;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     @Override
@@ -86,7 +93,8 @@ public class ProductImage {
                 ", type='" + type + '\'' +
                 ", filename='" + filename + '\'' +
                 ", size=" + size +
-                ", uploadTime=" + uploadTime +
+                ", uploadTime='" + uploadTime + '\'' +
+                ", url='" + url + '\'' +
                 '}';
     }
 }
