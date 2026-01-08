@@ -46,6 +46,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private IdGenerator idGenerator;
 
+    @Autowired
+    private SalesStatisticsService salesStatisticsService;
+
     /**
      * 从购物车创建订单
      */
@@ -466,6 +469,9 @@ public class OrderServiceImpl implements OrderService {
 
             // 5. 保存到HBase
             orderHBaseService.updateOrder(order);
+
+            // 6. 将订单ID写入统计更新队列
+            salesStatisticsService.enqueueOrderForStatisticsUpdate(orderId);
 
             logger.info("Successfully completed order: {}", orderId);
             return buildStatusUpdateResponse(order, "确认收货成功");

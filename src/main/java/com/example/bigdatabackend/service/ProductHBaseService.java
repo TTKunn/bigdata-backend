@@ -576,6 +576,12 @@ public class ProductHBaseService {
             summary.setStatus(Bytes.toString(statusBytes));
         }
 
+        // 解析商品介绍（从cf_detail列族）
+        byte[] descriptionBytes = result.getValue(cfDetailBytes, Bytes.toBytes("description"));
+        if (descriptionBytes != null) {
+            summary.setDescription(Bytes.toString(descriptionBytes));
+        }
+
         byte[] timeBytes = result.getValue(cfBaseBytes, Bytes.toBytes("create_time"));
         if (timeBytes != null) {
             String timeStr = Bytes.toString(timeBytes);

@@ -476,4 +476,214 @@ public class RedisService {
 
         return stats;
     }
+
+    // ==================== 销售统计相关方法 ====================
+
+    /**
+     * 设置字符串值
+     */
+    public void setString(String key, String value) {
+        if (key == null || value == null) {
+            logger.warn("Cannot setString: key or value is null");
+            return;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            jedis.set(key, value);
+            logger.debug("Set string: key={}", key);
+        } catch (Exception e) {
+            logger.error("Failed to setString: key={}", key, e);
+        }
+    }
+
+    /**
+     * 获取字符串值
+     */
+    public String getString(String key) {
+        if (key == null) {
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String value = jedis.get(key);
+            logger.debug("Get string: key={}, found={}", key, value != null);
+            return value;
+        } catch (Exception e) {
+            logger.error("Failed to getString: key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * 浮点数原子增加（用于销售额统计）
+     */
+    public Double incrByFloat(String key, double increment) {
+        if (key == null) {
+            logger.warn("Cannot incrByFloat: key is null");
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Double newValue = jedis.incrByFloat(key, increment);
+            logger.debug("Incremented float: key={}, increment={}, newValue={}", key, increment, newValue);
+            return newValue;
+        } catch (Exception e) {
+            logger.error("Failed to incrByFloat: key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * Hash字段浮点数原子增加
+     */
+    public Double hincrByFloat(String key, String field, double increment) {
+        if (key == null || field == null) {
+            logger.warn("Cannot hincrByFloat: key or field is null");
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Double newValue = jedis.hincrByFloat(key, field, increment);
+            logger.debug("Incremented hash float: key={}, field={}, increment={}, newValue={}",
+                key, field, increment, newValue);
+            return newValue;
+        } catch (Exception e) {
+            logger.error("Failed to hincrByFloat: key={}, field={}", key, field, e);
+            return null;
+        }
+    }
+
+    /**
+     * Hash字段整数原子增加
+     */
+    public Long hincrBy(String key, String field, long increment) {
+        if (key == null || field == null) {
+            logger.warn("Cannot hincrBy: key or field is null");
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Long newValue = jedis.hincrBy(key, field, increment);
+            logger.debug("Incremented hash: key={}, field={}, increment={}, newValue={}",
+                key, field, increment, newValue);
+            return newValue;
+        } catch (Exception e) {
+            logger.error("Failed to hincrBy: key={}, field={}", key, field, e);
+            return null;
+        }
+    }
+
+    /**
+     * 有序集合成员分数增加
+     */
+    public Double zincrby(String key, double increment, String member) {
+        if (key == null || member == null) {
+            logger.warn("Cannot zincrby: key or member is null");
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Double newScore = jedis.zincrby(key, increment, member);
+            logger.debug("Incremented sorted set: key={}, member={}, increment={}, newScore={}",
+                key, member, increment, newScore);
+            return newScore;
+        } catch (Exception e) {
+            logger.error("Failed to zincrby: key={}, member={}", key, member, e);
+            return null;
+        }
+    }
+
+    /**
+     * 获取有序集合指定范围成员（按分数降序）
+     */
+    public java.util.Set<String> zrevrange(String key, long start, long end) {
+        if (key == null) {
+            return new java.util.HashSet<>();
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            // Jedis的zrevrange返回的是LinkedHashSet（实现了Set接口）
+            java.util.Set<String> members = new java.util.LinkedHashSet<>(jedis.zrevrange(key, start, end));
+            logger.debug("Get sorted set range: key={}, start={}, end={}, size={}",
+                key, start, end, members.size());
+            return members;
+        } catch (Exception e) {
+            logger.error("Failed to zrevrange: key={}", key, e);
+            return new java.util.HashSet<>();
+        }
+    }
+
+    /**
+     * 列表左侧推入（用于待更新队列）
+     */
+    public Long lpush(String key, String... values) {
+        if (key == null || values == null || values.length == 0) {
+            logger.warn("Cannot lpush: key or values is null/empty");
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Long length = jedis.lpush(key, values);
+            logger.debug("Pushed to list: key={}, count={}, newLength={}", key, values.length, length);
+            return length;
+        } catch (Exception e) {
+            logger.error("Failed to lpush: key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * 列表右侧弹出（用于消费待更新队列）
+     */
+    public String rpop(String key) {
+        if (key == null) {
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String value = jedis.rpop(key);
+            logger.debug("Popped from list: key={}, value={}", key, value);
+            return value;
+        } catch (Exception e) {
+            logger.error("Failed to rpop: key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * 集合添加成员（用于去重）
+     */
+    public Long sadd(String key, String... members) {
+        if (key == null || members == null || members.length == 0) {
+            logger.warn("Cannot sadd: key or members is null/empty");
+            return null;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Long count = jedis.sadd(key, members);
+            logger.debug("Added to set: key={}, count={}", key, count);
+            return count;
+        } catch (Exception e) {
+            logger.error("Failed to sadd: key={}", key, e);
+            return null;
+        }
+    }
+
+    /**
+     * 检查集合成员是否存在（用于去重检查）
+     */
+    public Boolean sismember(String key, String member) {
+        if (key == null || member == null) {
+            return false;
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            Boolean exists = jedis.sismember(key, member);
+            logger.debug("Check set member: key={}, member={}, exists={}", key, member, exists);
+            return exists;
+        } catch (Exception e) {
+            logger.error("Failed to sismember: key={}, member={}", key, member, e);
+            return false;
+        }
+    }
 }

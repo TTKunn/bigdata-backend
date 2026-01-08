@@ -29,6 +29,9 @@ public class ProductSummaryDto {
     @JsonProperty("status")
     private String status;
 
+    @JsonProperty("description")
+    private String description;
+
     @JsonProperty("createTime")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
     private LocalDateTime createTime;
@@ -101,6 +104,14 @@ public class ProductSummaryDto {
         this.createTime = createTime;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     @Override
     public String toString() {
         return "ProductSummaryDto{" +
@@ -110,6 +121,7 @@ public class ProductSummaryDto {
                 ", brand='" + brand + '\'' +
                 ", price=" + price +
                 ", status='" + status + '\'' +
+                ", description='" + description + '\'' +
                 ", createTime=" + createTime +
                 '}';
     }
